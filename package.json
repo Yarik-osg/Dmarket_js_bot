@@ -8,9 +8,9 @@
     "start": "cross-env NODE_ENV=development electron .",
     "dev": "webpack serve --mode development --config renderer/webpack.config.js",
     "build": "cross-env NODE_ENV=production webpack --mode production --config renderer/webpack.config.js",
-    "build:electron": "npm run build && cross-env NODE_ENV=production electron-builder",
-    "build:win": "npm run build && cross-env NODE_ENV=production electron-builder --win",
-    "build:mac": "npm run build && cross-env NODE_ENV=production electron-builder --mac",
+    "build:electron": "npm run build && cross-env NODE_ENV=production electron-builder --publish never",
+    "build:win": "npm run build && cross-env NODE_ENV=production electron-builder --win --publish never",
+    "build:mac": "npm run build && cross-env NODE_ENV=production electron-builder --mac --publish never",
     "dist": "npm run build && cross-env NODE_ENV=production electron-builder"
   },
   "keywords": [

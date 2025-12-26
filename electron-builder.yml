@@ -36,4 +36,7 @@ linux:
   target: AppImage
   # icon: build/icon.png  # Uncomment if you have an icon file
 
+# Disable automatic publishing to GitHub
+publish: null
+
 
