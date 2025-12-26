@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DMarket Bot</title>
+    <script>
+        // Polyfill for global (needed for webpack dev server in Electron)
+        if (typeof global === 'undefined') {
+            var global = globalThis || window;
+        }
+        if (typeof window !== 'undefined' && typeof window.global === 'undefined') {
+            window.global = global;
+        }
+    </script>
+</head>
+<body>
+    <div id="root"></div>
+</body>
+</html>
+
+

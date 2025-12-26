@@ -1,0 +1,39 @@
+appId: com.dmarket.bot
+productName: DMarket Bot
+directories:
+  output: dist-electron
+files:
+  - main/**
+  - renderer/dist/**
+  - package.json
+  - shared/**
+extraMetadata:
+  main: main/main.js
+nsis:
+  oneClick: false
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: true
+  createStartMenuShortcut: true
+win:
+  target:
+    - target: nsis
+      arch:
+        - x64
+  # icon: build/icon.ico  # Uncomment if you have an icon file
+mac:
+  target:
+    - target: dmg
+      arch:
+        - x64
+        - arm64
+  category: public.app-category.utilities
+  hardenedRuntime: true
+  gatekeeperAssess: false
+  entitlements: null
+  entitlementsInherit: null
+  # icon: build/icon.icns  # Uncomment if you have an icon file
+linux:
+  target: AppImage
+  # icon: build/icon.png  # Uncomment if you have an icon file
+
+

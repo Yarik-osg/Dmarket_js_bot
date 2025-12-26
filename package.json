@@ -1,0 +1,46 @@
+{
+  "name": "dmarket-bot",
+  "version": "0.7.1",
+  "description": "DMarket Trading Bot Desktop Application",
+  "main": "main/main.js",
+  "type": "module",
+  "scripts": {
+    "start": "cross-env NODE_ENV=development electron .",
+    "dev": "webpack serve --mode development --config renderer/webpack.config.js",
+    "build": "cross-env NODE_ENV=production webpack --mode production --config renderer/webpack.config.js",
+    "build:electron": "npm run build && cross-env NODE_ENV=production electron-builder",
+    "build:win": "npm run build && cross-env NODE_ENV=production electron-builder --win",
+    "build:mac": "npm run build && cross-env NODE_ENV=production electron-builder --mac",
+    "dist": "npm run build && cross-env NODE_ENV=production electron-builder"
+  },
+  "keywords": [
+    "dmarket",
+    "trading",
+    "bot",
+    "electron"
+  ],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "@babel/core": "^7.26.0",
+    "@babel/preset-env": "^7.26.0",
+    "@babel/preset-react": "^7.26.0",
+    "babel-loader": "^9.2.1",
+    "cross-env": "^10.1.0",
+    "css-loader": "^7.1.2",
+    "electron": "^33.2.1",
+    "electron-builder": "^25.1.8",
+    "events": "^3.3.0",
+    "html-webpack-plugin": "^5.6.3",
+    "style-loader": "^4.0.0",
+    "webpack": "^5.97.1",
+    "webpack-cli": "^6.0.1",
+    "webpack-dev-server": "^5.1.0"
+  },
+  "dependencies": {
+    "electron-store": "^10.0.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "tweetnacl": "^1.0.3"
+  }
+}

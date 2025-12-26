@@ -1,0 +1,176 @@
+.offers-list {
+    padding: 20px;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+}
+
+.offers-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+}
+
+.offers-title {
+    color: #ffffff;
+    font-size: 24px;
+    margin: 0;
+}
+
+.offers-actions {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+}
+
+.offers-search {
+    padding: 8px 12px;
+    background-color: #2a2a2a;
+    border: 1px solid #444;
+    border-radius: 4px;
+    color: #ffffff;
+    font-size: 14px;
+    width: 200px;
+}
+
+.offers-table-container {
+    flex: 1;
+    overflow: auto;
+    background-color: #2a2a2a;
+    border-radius: 4px;
+}
+
+.offers-table {
+    width: 100%;
+    border-collapse: collapse;
+    color: #ffffff;
+}
+
+.offers-table th {
+    background-color: #333;
+    padding: 12px;
+    text-align: left;
+    font-weight: 600;
+    border-bottom: 2px solid #444;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+}
+
+.offers-table td {
+    padding: 12px;
+    border-bottom: 1px solid #444;
+}
+
+.offers-table tr:hover {
+    background-color: #333;
+}
+
+.offer-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.offer-price-cell {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.offer-price-main {
+    font-weight: 600;
+    color: #4caf50;
+    font-size: 14px;
+}
+
+.offer-price-label {
+    font-weight: 400;
+    font-size: 11px;
+    color: #999;
+    margin-left: 4px;
+}
+
+.offer-price-after-fee {
+    font-size: 12px;
+    color: #ff6b6b;
+    font-weight: 500;
+}
+
+.offer-fee-percentage {
+    font-weight: 400;
+    color: #999;
+}
+
+.offer-status {
+    color: #4caf50;
+    font-size: 12px;
+}
+
+.offer-actions {
+    display: flex;
+    gap: 8px;
+}
+
+.min-price-input {
+    width: 100px;
+    padding: 6px 8px;
+    background-color: #2a2a2a;
+    border: 1px solid #444;
+    border-radius: 4px;
+    color: #ffffff;
+    font-size: 14px;
+}
+
+.min-price-input:focus {
+    outline: none;
+    border-color: #007bff;
+}
+
+.btn {
+    padding: 8px 16px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 14px;
+    transition: background-color 0.2s;
+}
+
+.btn-primary {
+    background-color: #007bff;
+    color: #ffffff;
+}
+
+.btn-primary:hover {
+    background-color: #0056b3;
+}
+
+.btn-secondary {
+    background-color: #444;
+    color: #ffffff;
+}
+
+.btn-secondary:hover {
+    background-color: #555;
+}
+
+.btn-success {
+    background-color: #28a745;
+    color: #ffffff;
+}
+
+.btn-success:hover {
+    background-color: #218838;
+}
+
+.btn-danger {
+    background-color: #dc3545;
+    color: #ffffff;
+}
+
+.btn-danger:hover {
+    background-color: #c82333;
+}
+
+

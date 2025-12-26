@@ -1,0 +1,93 @@
+name: Build Desktop App
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      platform:
+        description: 'Platform to build (win, mac, all)'
+        required: true
+        default: 'all'
+        type: choice
+        options:
+          - win
+          - mac
+          - all
+
+jobs:
+  build-windows:
+    name: Build for Windows
+    runs-on: windows-latest
+    if: |
+      (github.event_name == 'workflow_dispatch' && (github.event.inputs.platform == 'win' || github.event.inputs.platform == 'all')) ||
+      (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v'))
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+          cache-dependency-path: dmarket-bot/package-lock.json
+
+      - name: Install dependencies
+        working-directory: ./dmarket-bot
+        run: npm ci
+
+      - name: Build frontend
+        working-directory: ./dmarket-bot
+        run: npm run build
+
+      - name: Build Windows installer
+        working-directory: ./dmarket-bot
+        run: npm run build:win
+
+      - name: Upload Windows artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-installer
+          path: dmarket-bot/dist-electron/*.exe
+          retention-days: 30
+
+  build-macos:
+    name: Build for macOS
+    runs-on: macos-latest
+    if: |
+      (github.event_name == 'workflow_dispatch' && (github.event.inputs.platform == 'mac' || github.event.inputs.platform == 'all')) ||
+      (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v'))
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+          cache-dependency-path: dmarket-bot/package-lock.json
+
+      - name: Install dependencies
+        working-directory: ./dmarket-bot
+        run: npm ci
+
+      - name: Build frontend
+        working-directory: ./dmarket-bot
+        run: npm run build
+
+      - name: Build macOS DMG
+        working-directory: ./dmarket-bot
+        run: npm run build:mac
+
+      - name: Upload macOS artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: macos-dmg
+          path: dmarket-bot/dist-electron/*.dmg
+          retention-days: 30
+

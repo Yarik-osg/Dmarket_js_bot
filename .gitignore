@@ -1,0 +1,20 @@
+node_modules/
+dist/
+build/
+*.log
+.DS_Store
+.env
+*.local
+
+# Electron store config files (contain API keys)
+config.json
+**/config.json
+*.config.json
+
+# AppData config (if somehow copied to project)
+**/AppData/**/dmarket-bot/
+
+# PowerShell scripts
+*.ps1
+
+

@@ -1,0 +1,87 @@
+.balance-display {
+    padding: 15px;
+    background-color: #1e1e1e;
+    border-top: 1px solid #444;
+    margin-top: auto;
+}
+
+.balance-header {
+    font-size: 14px;
+    font-weight: 600;
+    color: #ffffff;
+    margin-bottom: 12px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.balance-refresh-btn {
+    background: transparent;
+    border: none;
+    color: #ffffff;
+    cursor: pointer;
+    font-size: 16px;
+    padding: 4px 8px;
+    border-radius: 4px;
+    transition: background-color 0.2s;
+}
+
+.balance-refresh-btn:hover:not(:disabled) {
+    background-color: #333;
+}
+
+.balance-refresh-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.balance-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 6px 0;
+    font-size: 12px;
+}
+
+.balance-item.total {
+    margin-top: 8px;
+    padding-top: 8px;
+    border-top: 1px solid #444;
+    font-weight: 600;
+}
+
+.balance-label {
+    color: #aaaaaa;
+}
+
+.balance-value {
+    color: #ffffff;
+    font-weight: 500;
+}
+
+.balance-value.available {
+    color: #4caf50;
+}
+
+.balance-value.frozen {
+    color: #ff9800;
+}
+
+.balance-value.total {
+    color: #2196f3;
+    font-size: 13px;
+}
+
+.balance-loading,
+.balance-error {
+    text-align: center;
+    color: #888;
+    font-size: 12px;
+    padding: 10px 0;
+}
+
+.balance-error {
+    color: #f44336;
+}
+
+

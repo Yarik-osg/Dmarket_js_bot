@@ -1,0 +1,148 @@
+.target-form-container {
+    padding: 20px;
+    height: 100%;
+    overflow: auto;
+}
+
+.target-form-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 30px;
+}
+
+.btn-back {
+    background: none;
+    border: none;
+    color: #ffffff;
+    font-size: 24px;
+    cursor: pointer;
+    padding: 0;
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.btn-back:hover {
+    background-color: #333;
+    border-radius: 4px;
+}
+
+.target-form-title {
+    color: #ffffff;
+    font-size: 24px;
+    margin: 0;
+}
+
+.target-form {
+    max-width: 600px;
+    margin: 0 auto;
+}
+
+.form-field {
+    margin-bottom: 20px;
+}
+
+.form-field label {
+    display: block;
+    color: #cccccc;
+    margin-bottom: 8px;
+    font-size: 14px;
+}
+
+.form-input {
+    width: 100%;
+    padding: 12px;
+    background-color: #2a2a2a;
+    border: 1px solid #444;
+    border-radius: 4px;
+    color: #ffffff;
+    font-size: 14px;
+}
+
+.form-input:focus {
+    outline: none;
+    border-color: #007bff;
+}
+
+.form-input.small {
+    width: 100px;
+}
+
+.search-container {
+    position: relative;
+}
+
+.search-results {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    background-color: #2a2a2a;
+    border: 1px solid #444;
+    border-top: none;
+    border-radius: 0 0 4px 4px;
+    max-height: 200px;
+    overflow-y: auto;
+    z-index: 100;
+}
+
+.search-result-item {
+    padding: 10px 12px;
+    cursor: pointer;
+    color: #ffffff;
+    border-bottom: 1px solid #444;
+}
+
+.search-result-item:hover {
+    background-color: #333;
+}
+
+.search-result-item:last-child {
+    border-bottom: none;
+}
+
+.float-controls, .phase-controls {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.checkbox-label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: #cccccc;
+    cursor: pointer;
+}
+
+.checkbox-label input[type="checkbox"] {
+    width: auto;
+    cursor: pointer;
+}
+
+.float-range {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    color: #cccccc;
+}
+
+.form-error {
+    color: #ff4444;
+    margin-bottom: 20px;
+    padding: 10px;
+    background-color: #2a1a1a;
+    border-radius: 4px;
+}
+
+.form-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    margin-top: 30px;
+}
+
+
