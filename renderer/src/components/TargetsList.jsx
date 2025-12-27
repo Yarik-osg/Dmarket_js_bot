@@ -975,6 +975,8 @@ function TargetsList({ isAutoUpdatingEnabled = false, onToggleAutoUpdate }) {
                                 const amount = target.amount || 1;
                                 const floatPartValue = target.extra?.floatPartValue || target.attributes?.floatPartValue || 'N/A';
                                 const floatRange = getFloatRange(floatPartValue);
+                                const phase = target.attributes?.phase || target.extra?.phase || null;
+                                const paintSeed = target.attributes?.paintSeed || target.extra?.paintSeed || null;
                                 const gameId = target.gameId || 'a8db';
                                 
                                 return (
@@ -985,10 +987,20 @@ function TargetsList({ isAutoUpdatingEnabled = false, onToggleAutoUpdate }) {
                                                 <span className={status === 'active' ? 'active-target-status' : 'inactive-target-status'}>{status}</span>
                                                 <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
                                                     <span>{title}</span>
-                                                    {floatPartValue !== 'N/A' && (
-                                                        <span style={{ fontSize: '11px', color: '#888' }}>
-                                                            {floatPartValue} {floatRange !== floatPartValue && `(${floatRange})`}
-                                                        </span>
+                                                    {(floatPartValue !== 'N/A' || phase || (paintSeed && paintSeed !== 0)) && (
+                                                        <div style={{ fontSize: '11px', color: '#888', display: 'flex', flexDirection: 'row', gap: '10px', flexWrap: 'wrap' }}>
+                                                            {floatPartValue !== 'N/A' && (
+                                                                <span>
+                                                                    Float: {floatPartValue} {floatRange !== floatPartValue && `(${floatRange})`}
+                                                                </span>
+                                                            )}
+                                                            {phase && (
+                                                                <span>Phase: {phase}</span>
+                                                            )}
+                                                            {paintSeed && paintSeed !== 0 && (
+                                                                <span>Paint Seed: {paintSeed}</span>
+                                                            )}
+                                                        </div>
                                                     )}
                                                 </div>
                                             </div>

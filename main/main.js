@@ -51,8 +51,14 @@ function createWindow() {
             },
             titleBarStyle: 'default',
             backgroundColor: '#1a1a1a',
-            show: true // Show immediately
+            show: true, // Show immediately
+            autoHideMenuBar: !isDev // Hide menu bar in production
         });
+        
+        // Hide menu bar in production
+        if (!isDev) {
+            mainWindow.setMenuBarVisibility(false);
+        }
 
         // Focus window when ready
         mainWindow.once('ready-to-show', () => {
