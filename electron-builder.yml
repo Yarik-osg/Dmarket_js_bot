@@ -26,18 +26,15 @@ mac:
     - target: dmg
       arch:
         - universal
-  # Alternative: separate builds for each architecture (if universal doesn't work)
-  # target:
-  #   - target: dmg
-  #     arch:
-  #       - x64
-  #       - arm64
   category: public.app-category.utilities
+  minimumSystemVersion: "10.13"
   hardenedRuntime: false
   gatekeeperAssess: false
   identity: null
   entitlements: null
   entitlementsInherit: null
+  # Force universal binary creation
+  artifactName: "${productName}-${version}.${ext}"
   # icon: build/icon.icns  # Uncomment if you have an icon file
 linux:
   target: AppImage
