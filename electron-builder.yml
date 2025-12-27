@@ -21,11 +21,17 @@ win:
         - x64
   # icon: build/icon.ico  # Uncomment if you have an icon file
 mac:
+  # Use universal build - works on both Intel (x64) and Apple Silicon (arm64)
   target:
     - target: dmg
       arch:
-        - x64
-        - arm64
+        - universal
+  # Alternative: separate builds for each architecture (if universal doesn't work)
+  # target:
+  #   - target: dmg
+  #     arch:
+  #       - x64
+  #       - arm64
   category: public.app-category.utilities
   hardenedRuntime: false
   gatekeeperAssess: false
