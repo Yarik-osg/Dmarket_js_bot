@@ -320,6 +320,28 @@ function TargetsList({ isAutoUpdatingEnabled = false, onToggleAutoUpdate }) {
                         // Get target's floatPartValue for filtering
                         const targetFloatValue = target.extra?.floatPartValue;
                         
+                        // Get our target amount
+                        const ourAmount = target.amount || 1;
+                        
+                        // Get current target price and convert to cents for comparison
+                        let currentPriceCents = 0;
+                        const currentPrice = target.price?.amount || target.price?.USD || target.price;
+                        if (currentPrice !== undefined && currentPrice !== null && currentPrice !== 'N/A') {
+                            if (typeof currentPrice === 'string') {
+                                const parsed = parseFloat(currentPrice);
+                                if (!isNaN(parsed)) {
+                                    currentPriceCents = parsed >= 10 ? parsed : parsed * 100;
+                                }
+                            } else if (typeof currentPrice === 'number') {
+                                currentPriceCents = currentPrice >= 10 ? currentPrice : currentPrice * 100;
+                            }
+                        }
+                        
+                        if (currentPriceCents === 0) {
+                            console.log(`Skipping target ${title}: no current price`);
+                            continue;
+                        }
+                        
                         // Filter orders by floatPartValue
                         const filteredOrders = targetsData.orders.filter(order => {
                             const orderFloatValue = order.attributes?.floatPartValue;
@@ -329,58 +351,89 @@ function TargetsList({ isAutoUpdatingEnabled = false, onToggleAutoUpdate }) {
 
                         console.log('filteredOrders', filteredOrders);
                         console.log('targetsData', targetsData);
+                        console.log('Our target:', { title, ourAmount, currentPriceCents });
+                        
+                        // Find all our targets that match the same title/floatPartValue to exclude them
+                        const ourTargetIds = new Set();
+                        const ourTargetId = target.targetId || target.itemId || target.instantTargetId;
+                        
+                        for (const ourTarget of currentTargets) {
+                            const ourTargetTitle = ourTarget.itemTitle || ourTarget.title || ourTarget.extra?.name || ourTarget.attributes?.title;
+                            const ourTargetFloat = ourTarget.extra?.floatPartValue || ourTarget.attributes?.floatPartValue;
+                            
+                            // Check if this target matches the same title and floatPartValue
+                            if (ourTargetTitle === title && ourTargetFloat === targetFloatValue) {
+                                const id = ourTarget.targetId || ourTarget.itemId || ourTarget.instantTargetId;
+                                ourTargetIds.add(id);
+                            }
+                        }
+                        
+                        console.log('Our targets matching:', { ourTargetIds: Array.from(ourTargetIds) });
                         
                         const maxPriceCents = parseFloat(maxPrice) * 100; // Convert maxPrice to cents
                         
-                        // Find highest price (excluding our own target) within maxPrice range
-                        // Use consistent identifier logic for comparison
-                        const otherTargetPrices = filteredOrders
-                            .filter(order => {
-                                // Get all possible identifiers for the market order
-                                const orderTargetId = order.targetId || order.itemId || order.instantTargetId;
-                                // Get all possible identifiers for our target
-                                const ourTargetId = target.targetId || target.itemId || target.instantTargetId;
-                                // Exclude our own target by comparing all possible identifiers
-                                const isOurTarget = orderTargetId === ourTargetId || 
-                                                  order.itemId === target.itemId ||
-                                                  order.itemId === ourTargetId ||
-                                                  orderTargetId === target.itemId;
-                                if (isOurTarget) {
-                                    console.log(`Excluding our own target: orderTargetId=${orderTargetId}, ourTargetId=${ourTargetId}, target.itemId=${target.itemId}, order.itemId=${order.itemId}`);
-                                    return false; // Exclude our own target
-                                }
-                                
-                                // Convert order price to cents for comparison
-                                const orderPrice = order.price?.amount || order.price?.USD || order.price;
-                                let orderPriceCents = 0;
-                                if (typeof orderPrice === 'string') {
-                                    const parsed = parseFloat(orderPrice);
-                                    orderPriceCents = parsed >= 10 ? parsed : parsed * 100;
-                                } else if (typeof orderPrice === 'number') {
-                                    orderPriceCents = orderPrice >= 10 ? orderPrice : orderPrice * 100;
-                                }
-                                
-                                // Only include orders with price <= maxPrice
-                                return orderPriceCents > 0 && !isNaN(orderPriceCents) && orderPriceCents <= maxPriceCents;
-                            })
-                            .map(order => {
-                                const price = order.price?.amount || order.price?.USD || order.price;
-                                // Convert to cents if needed
-                                if (typeof price === 'string') {
-                                    const parsed = parseFloat(price);
-                                    // If price looks like cents (>= 10), use as is; otherwise assume dollars
-                                    return parsed >= 10 ? parsed : parsed * 100;
-                                }
-                                // If number, assume cents if >= 10, otherwise dollars
-                                return price >= 10 ? price : price * 100;
-                            })
-                            .sort((a, b) => b - a); // Sort descending
-
-                        if (otherTargetPrices.length > 0) {
-                            const highestPrice = otherTargetPrices[0]; // Highest price in cents (within maxPrice range)
+                        // Find orders and check if we need to increase price
+                        // We should increase price if:
+                        // 1. There's a target with higher price than ours, OR
+                        // 2. There's a target with same price but higher amount
+                        let shouldIncreasePrice = false;
+                        let highestPriceCents = currentPriceCents;
+                        
+                        for (const order of filteredOrders) {
+                            // Get all possible identifiers for the market order
+                            const orderTargetId = order.targetId || order.itemId || order.instantTargetId;
+                            // Check if this order is one of our targets
+                            const isOurTarget = ourTargetIds.has(orderTargetId) || 
+                                              ourTargetIds.has(order.itemId) ||
+                                              (order.itemId && Array.from(ourTargetIds).some(id => order.itemId === id));
                             
-                            // Set price 1 cent higher than highest price in range, but not more than maxPrice
-                            let newPriceCents = highestPrice + 1; // 1 cent higher
+                            if (isOurTarget) {
+                                console.log(`Excluding our own target: orderTargetId=${orderTargetId}, order.itemId=${order.itemId}`);
+                                continue; // Skip our own targets
+                            }
+                            
+                            // Convert order price to cents for comparison
+                            const orderPrice = order.price?.amount || order.price?.USD || order.price;
+                            let orderPriceCents = 0;
+                            if (typeof orderPrice === 'string') {
+                                const parsed = parseFloat(orderPrice);
+                                orderPriceCents = parsed >= 10 ? parsed : parsed * 100;
+                            } else if (typeof orderPrice === 'number') {
+                                orderPriceCents = orderPrice >= 10 ? orderPrice : orderPrice * 100;
+                            }
+                            
+                            if (orderPriceCents <= 0 || orderPriceCents > maxPriceCents) {
+                                continue; // Skip invalid prices or prices above max
+                            }
+                            
+                            // Get order amount (from endpoint, it's a string)
+                            const orderAmount = parseInt(order.amount || '1', 10);
+                            
+                            // Track highest price for setting new price
+                            if (orderPriceCents > highestPriceCents) {
+                                highestPriceCents = orderPriceCents;
+                            }
+                            
+                            // Check if price is higher than ours - then we should increase
+                            if (orderPriceCents > currentPriceCents) {
+                                shouldIncreasePrice = true;
+                                console.log(`Found order with higher price: ${orderPriceCents} > ${currentPriceCents}`);
+                            }
+                            // Check if price is the same (within 1 cent tolerance) and amount is greater
+                            else if (Math.abs(orderPriceCents - currentPriceCents) < 1) {
+                                if (orderAmount > ourAmount) {
+                                    shouldIncreasePrice = true;
+                                    console.log(`Found order with same price (${orderPriceCents} cents) but higher amount: ${orderAmount} > ${ourAmount}`);
+                                }
+                            }
+                        }
+
+                        console.log('Price check result:', { shouldIncreasePrice, currentPriceCents, highestPriceCents, ourAmount });
+
+                        // Increase price if we found orders with higher price OR same price but higher amount
+                        if (shouldIncreasePrice) {
+                            // Set price 1 cent higher than highest price (or current price if it's higher), but not more than maxPrice
+                            let newPriceCents = Math.max(highestPriceCents, currentPriceCents) + 1; // 1 cent higher
                             if (newPriceCents > maxPriceCents) {
                                 newPriceCents = maxPriceCents; // Don't exceed maxPrice
                             }
@@ -389,22 +442,11 @@ function TargetsList({ isAutoUpdatingEnabled = false, onToggleAutoUpdate }) {
                             const newPrice = (newPriceCents / 100).toFixed(2);
                             const newPriceFloat = parseFloat(newPrice);
                             
-                            // Get current target price and convert to decimal format (dollars)
-                            let currentPriceFloat = null;
-                            const currentPrice = target.price?.amount || target.price?.USD || target.price;
-                            if (currentPrice !== undefined && currentPrice !== null && currentPrice !== 'N/A') {
-                                if (typeof currentPrice === 'string') {
-                                    const cents = parseFloat(currentPrice);
-                                    if (!isNaN(cents)) {
-                                        currentPriceFloat = cents >= 10 ? cents : cents / 100;
-                                    }
-                                } else if (typeof currentPrice === 'number') {
-                                    currentPriceFloat = currentPrice >= 10 ? currentPrice : currentPrice / 100;
-                                }
-                            }
+                            // Get current target price in decimal format (dollars)
+                            const currentPriceFloat = currentPriceCents / 100;
                             
                             // Skip update if new price equals current price (to avoid API error)
-                            if (currentPriceFloat !== null && Math.abs(newPriceFloat - currentPriceFloat) < 0.01) {
+                            if (Math.abs(newPriceFloat - currentPriceFloat) < 0.01) {
                                 console.log(`Skipping update for ${title}: new price ${newPriceFloat} equals current price ${currentPriceFloat.toFixed(2)}`);
                                 continue;
                             }
@@ -413,12 +455,12 @@ function TargetsList({ isAutoUpdatingEnabled = false, onToggleAutoUpdate }) {
                             console.log('=== UPDATE TARGET ===');
                             console.log('title:', title);
                             console.log('targetId:', targetId);
-                            console.log('highestPrice:', highestPrice);
-                            console.log('maxPriceCents:', maxPriceCents);
-                            console.log('currentPrice:', currentPriceFloat !== null ? currentPriceFloat.toFixed(2) : 'N/A');
+                            console.log('currentPrice:', currentPriceFloat.toFixed(2));
                             console.log('newPrice:', newPriceFloat);
+                            console.log('ourAmount:', ourAmount);
+                            console.log('maxPriceCents:', maxPriceCents);
                             try {
-                                await updateTarget(targetId, { price: { amount: newPrice, currency: 'USD' }, amount: target.amount || 1 }, gameId, title, floatPartValue, true);
+                                await updateTarget(targetId, { price: { amount: newPrice, currency: 'USD' }, amount: ourAmount }, gameId, title, floatPartValue, true);
                                 addLog({
                                     type: 'success',
                                     category: 'parsing',
@@ -426,9 +468,9 @@ function TargetsList({ isAutoUpdatingEnabled = false, onToggleAutoUpdate }) {
                                     details: {
                                         title,
                                         targetId,
-                                        oldPrice: currentPriceFloat !== null ? currentPriceFloat.toFixed(2) : 'N/A',
+                                        oldPrice: currentPriceFloat.toFixed(2),
                                         newPrice: newPriceFloat.toFixed(2),
-                                        highestPrice: (highestPrice / 100).toFixed(2),
+                                        ourAmount,
                                         maxPrice: maxPrice
                                     }
                                 });
@@ -445,13 +487,15 @@ function TargetsList({ isAutoUpdatingEnabled = false, onToggleAutoUpdate }) {
                                         targetId,
                                         errorCode,
                                         errorMessage,
-                                        oldPrice: currentPriceFloat !== null ? currentPriceFloat.toFixed(2) : 'N/A',
+                                        oldPrice: currentPriceFloat.toFixed(2),
                                         newPrice: newPriceFloat.toFixed(2)
                                     }
                                 });
                                 console.warn(`Failed to update target ${targetId}:`, errorCode, errorMessage);
                                 // Don't throw - continue with next target
                             }
+                        } else {
+                            console.log(`Skipping price increase for ${title}: no orders with same price and higher amount found`);
                         }
                     }
                 } catch (err) {
