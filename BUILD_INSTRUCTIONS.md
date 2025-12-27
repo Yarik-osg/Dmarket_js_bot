@@ -70,3 +70,4 @@ gh workflow run "Build Desktop App.yml" -f platform=mac
 - Universal build для macOS працює на Intel та Apple Silicon
 - Для Windows створюється один .exe файл
 
+
