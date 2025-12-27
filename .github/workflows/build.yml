@@ -75,8 +75,11 @@ jobs:
       - name: Build frontend
         run: npm run build
 
-      - name: Build macOS DMG
-        run: npm run build:mac
+      - name: Build macOS DMG (Intel x64)
+        run: cross-env NODE_ENV=production electron-builder --mac --x64 --publish never
+
+      - name: Build macOS DMG (Apple Silicon arm64)
+        run: cross-env NODE_ENV=production electron-builder --mac --arm64 --publish never
 
       - name: Upload macOS artifacts
         uses: actions/upload-artifact@v4

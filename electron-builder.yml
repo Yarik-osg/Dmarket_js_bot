@@ -21,11 +21,13 @@ win:
         - x64
   # icon: build/icon.ico  # Uncomment if you have an icon file
 mac:
-  # Use universal build - works on both Intel (x64) and Apple Silicon (arm64)
+  # Build separate DMG files for each architecture
+  # This ensures compatibility with both Intel and Apple Silicon Macs
   target:
     - target: dmg
       arch:
-        - universal
+        - x64
+        - arm64
   category: public.app-category.utilities
   minimumSystemVersion: "10.13"
   hardenedRuntime: false
@@ -33,8 +35,10 @@ mac:
   identity: null
   entitlements: null
   entitlementsInherit: null
-  # Force universal binary creation
-  artifactName: "${productName}-${version}.${ext}"
+  # Ensure compatibility with older macOS versions
+  extendInfo:
+    LSMinimumSystemVersion: "10.13"
+    NSHighResolutionCapable: true
   # icon: build/icon.icns  # Uncomment if you have an icon file
 linux:
   target: AppImage
