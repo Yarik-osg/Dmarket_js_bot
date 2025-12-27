@@ -83,15 +83,30 @@ function TargetsList({ isAutoUpdatingEnabled = false, onToggleAutoUpdate }) {
                         const targetsData = await apiService.getTargetsByTitle(gameId, title);
                         // API returns { orders: [...] } structure
                         if (targetsData?.orders && targetsData.orders.length > 0) {
-                            // Get target's floatPartValue for filtering
-                            const targetFloatValue = target.extra?.floatPartValue;
+                            // Get target's attributes for filtering
+                            const targetFloatValue = target.extra?.floatPartValue || target.attributes?.floatPartValue;
+                            const targetPhase = target.attributes?.phase || target.extra?.phase;
+                            const targetPaintSeed = target.attributes?.paintSeed || target.extra?.paintSeed;
                             
-                            // Filter orders by floatPartValue: match target's floatPartValue or 'any'
+                            // Filter orders by floatPartValue, phase, and paintSeed
                             const filteredOrders = targetsData.orders.filter(order => {
                                 const orderFloatValue = order.attributes?.floatPartValue;
-                                // Accept if floatPartValue matches target's value or is 'any'
-                                return orderFloatValue === 'any' || 
-                                       (targetFloatValue && orderFloatValue === targetFloatValue);
+                                const orderPhase = order.attributes?.phase;
+                                const orderPaintSeed = order.attributes?.paintSeed;
+                                
+                                // Check floatPartValue match
+                                const floatMatches = orderFloatValue === 'any' || 
+                                                   (targetFloatValue && orderFloatValue === targetFloatValue) ||
+                                                   (!targetFloatValue && !orderFloatValue);
+                                
+                                // Check phase match (if our target has phase, order must have same phase)
+                                const phaseMatches = !targetPhase || (orderPhase === targetPhase);
+                                
+                                // Check paintSeed match (if our target has paintSeed and it's not 0, order must have same paintSeed)
+                                const paintSeedMatches = !targetPaintSeed || targetPaintSeed === 0 || 
+                                                        (orderPaintSeed && parseInt(orderPaintSeed) === parseInt(targetPaintSeed));
+                                
+                                return floatMatches && phaseMatches && paintSeedMatches;
                             });
 
                             // Find highest price (best offer for seller from buy orders)
@@ -317,8 +332,10 @@ function TargetsList({ isAutoUpdatingEnabled = false, onToggleAutoUpdate }) {
                     const targetsData = await apiService.getTargetsByTitle(gameId, title);
                     
                     if (targetsData?.orders && targetsData.orders.length > 0) {
-                        // Get target's floatPartValue for filtering
-                        const targetFloatValue = target.extra?.floatPartValue;
+                        // Get target's attributes for filtering
+                        const targetFloatValue = target.extra?.floatPartValue || target.attributes?.floatPartValue;
+                        const targetPhase = target.attributes?.phase || target.extra?.phase;
+                        const targetPaintSeed = target.attributes?.paintSeed || target.extra?.paintSeed;
                         
                         // Get our target amount
                         const ourAmount = target.amount || 1;
@@ -342,27 +359,51 @@ function TargetsList({ isAutoUpdatingEnabled = false, onToggleAutoUpdate }) {
                             continue;
                         }
                         
-                        // Filter orders by floatPartValue
+                        // Filter orders by floatPartValue, phase, and paintSeed
                         const filteredOrders = targetsData.orders.filter(order => {
                             const orderFloatValue = order.attributes?.floatPartValue;
-                            return orderFloatValue === 'any' || 
-                                   (targetFloatValue && orderFloatValue === targetFloatValue);
+                            const orderPhase = order.attributes?.phase;
+                            const orderPaintSeed = order.attributes?.paintSeed;
+                            
+                            // Check floatPartValue match
+                            const floatMatches = orderFloatValue === 'any' || 
+                                               (targetFloatValue && orderFloatValue === targetFloatValue) ||
+                                               (!targetFloatValue && !orderFloatValue);
+
+                            // Check phase match (if our target has phase, order must have same phase)
+                            const phaseMatches = !targetPhase || (orderPhase === targetPhase);
+                            console.log('orderPhase', orderPhase);
+                            console.log('targetPhase', targetPhase);
+                            // Check paintSeed match (if our target has paintSeed and it's not 0, order must have same paintSeed)
+                            const paintSeedMatches = !targetPaintSeed || targetPaintSeed === 0 || 
+                                                    (orderPaintSeed && parseInt(orderPaintSeed) === parseInt(targetPaintSeed));
+                            console.log('orderPaintSeed', orderPaintSeed);
+                            console.log('targetPaintSeed', targetPaintSeed);  
+                            return floatMatches && phaseMatches && paintSeedMatches;
                         });
 
                         console.log('filteredOrders', filteredOrders);
                         console.log('targetsData', targetsData);
                         console.log('Our target:', { title, ourAmount, currentPriceCents });
                         
-                        // Find all our targets that match the same title/floatPartValue to exclude them
+                        // Find all our targets that match the same title/floatPartValue/phase/paintSeed to exclude them
                         const ourTargetIds = new Set();
                         const ourTargetId = target.targetId || target.itemId || target.instantTargetId;
                         
                         for (const ourTarget of currentTargets) {
                             const ourTargetTitle = ourTarget.itemTitle || ourTarget.title || ourTarget.extra?.name || ourTarget.attributes?.title;
                             const ourTargetFloat = ourTarget.extra?.floatPartValue || ourTarget.attributes?.floatPartValue;
+                            const ourTargetPhase = ourTarget.attributes?.phase || ourTarget.extra?.phase;
+                            const ourTargetPaintSeed = ourTarget.attributes?.paintSeed || ourTarget.extra?.paintSeed;
                             
-                            // Check if this target matches the same title and floatPartValue
-                            if (ourTargetTitle === title && ourTargetFloat === targetFloatValue) {
+                            // Check if this target matches the same title, floatPartValue, phase, and paintSeed
+                            const titleMatch = ourTargetTitle === title;
+                            const floatMatch = ourTargetFloat === targetFloatValue;
+                            const phaseMatch = (!targetPhase && !ourTargetPhase) || (targetPhase === ourTargetPhase);
+                            const paintSeedMatch = (!targetPaintSeed || targetPaintSeed === 0) && (!ourTargetPaintSeed || ourTargetPaintSeed === 0) ||
+                                                 (targetPaintSeed && ourTargetPaintSeed && parseInt(targetPaintSeed) === parseInt(ourTargetPaintSeed));
+                            
+                            if (titleMatch && floatMatch && phaseMatch && paintSeedMatch) {
                                 const id = ourTarget.targetId || ourTarget.itemId || ourTarget.instantTargetId;
                                 ourTargetIds.add(id);
                             }

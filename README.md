@@ -63,6 +63,40 @@ npm run build
 npm start
 ```
 
+### macOS
+
+**Збірка для macOS:**
+```bash
+npm run build:mac
+```
+
+**Рішення проблеми з Gatekeeper (безпека macOS):**
+
+Якщо після збірки macOS блокує запуск додатку з повідомленням "не може бути верифікований розробник", виконайте один з наступних кроків:
+
+**Спосіб 1: Через скрипт (рекомендовано)**
+```bash
+chmod +x scripts/mac-allow-app.sh
+./scripts/mac-allow-app.sh
+```
+
+**Спосіб 2: Вручну через термінал**
+```bash
+xattr -dr com.apple.quarantine "dist-electron/mac/DMarket Bot.app"
+```
+
+**Спосіб 3: Через Finder**
+1. Знайдіть `DMarket Bot.app` в `dist-electron/mac/`
+2. Натисніть правою кнопкою миші (або Control+Click)
+3. Виберіть "Open" (Відкрити)
+4. У діалозі безпеки натисніть "Open" (Відкрити)
+
+**Спосіб 4: Через Системні налаштування**
+1. Відкрийте "System Settings" → "Privacy & Security"
+2. Прокрутіть вниз до секції "Security"
+3. Знайдіть повідомлення про блокування додатку
+4. Натисніть "Open Anyway"
+
 ### Запуск через npm
 
 **Режим розробки:**

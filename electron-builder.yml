@@ -27,8 +27,9 @@ mac:
         - x64
         - arm64
   category: public.app-category.utilities
-  hardenedRuntime: true
+  hardenedRuntime: false
   gatekeeperAssess: false
+  identity: null
   entitlements: null
   entitlementsInherit: null
   # icon: build/icon.icns  # Uncomment if you have an icon file
