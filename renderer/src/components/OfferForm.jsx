@@ -16,7 +16,7 @@ function OfferForm({ onClose, onSave }) {
     const [inventory, setInventory] = useState([]);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
-    const [selectedItems, setSelectedItems] = useState([]); // Array of { assetId, price }
+    const [selectedItems, setSelectedItems] = useState([]); // Array of { assetId, price, skipForParsing }
     const [searchQuery, setSearchQuery] = useState('');
 
     useEffect(() => {
@@ -89,7 +89,7 @@ function OfferForm({ onClose, onSave }) {
                     defaultPrice = (priceInCents / 100).toFixed(2);
                 }
             }
-            setSelectedItems([...selectedItems, { assetId, price: defaultPrice }]);
+            setSelectedItems([...selectedItems, { assetId, price: defaultPrice, skipForParsing: false }]);
         }
     };
 
@@ -123,6 +123,22 @@ function OfferForm({ onClose, onSave }) {
 
             console.log('Creating offers:', requestBody);
             await apiService.createOffer(requestBody);
+            
+            // Save skipForParsing settings for created offers
+            // We need to match assetId with itemId after offers are created
+            // For now, save by assetId - will be matched when offers are loaded
+            try {
+                const savedSkipForParsing = JSON.parse(localStorage.getItem('offersSkipForParsing') || '{}');
+                selectedItems.forEach(item => {
+                    if (item.skipForParsing) {
+                        // Save by assetId - will be matched to itemId when offers are loaded
+                        savedSkipForParsing[item.assetId] = true;
+                    }
+                });
+                localStorage.setItem('offersSkipForParsing', JSON.stringify(savedSkipForParsing));
+            } catch (err) {
+                console.error('Error saving skipForParsing:', err);
+            }
             
             const itemsCount = selectedItems.length;
             const itemsTitles = selectedItems.map(item => {

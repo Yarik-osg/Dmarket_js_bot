@@ -27,6 +27,16 @@ function OffersList({ isAutoUpdatingEnabled = false, onToggleAutoUpdate }) {
         }
     });
     const [pendingMinPrices, setPendingMinPrices] = useState({}); // Store pending min prices before applying
+    // Load skipForParsing from localStorage on mount
+    const [skipForParsing, setSkipForParsing] = useState(() => {
+        try {
+            const saved = localStorage.getItem('offersSkipForParsing');
+            return saved ? JSON.parse(saved) : {};
+        } catch (err) {
+            console.error('Error loading skipForParsing from localStorage:', err);
+            return {};
+        }
+    });
     const loadingPricesRef = useRef(false);
     const lastOffersRef = useRef([]);
     const [showOfferForm, setShowOfferForm] = useState(false);
@@ -34,6 +44,7 @@ function OffersList({ isAutoUpdatingEnabled = false, onToggleAutoUpdate }) {
     const isAutoUpdatingRef = useRef(false);
     const offersRef = useRef(offers);
     const minPricesRef = useRef({}); // Keep minPrices in ref to prevent loss during updates
+    const skipForParsingRef = useRef({}); // Keep skipForParsing in ref to prevent loss during updates
 
     // Memoize apiService to prevent recreation on every render
     const apiService = useMemo(() => {
@@ -53,6 +64,17 @@ function OffersList({ isAutoUpdatingEnabled = false, onToggleAutoUpdate }) {
             }
         } catch (err) {
             console.error('Error saving minPrices before loadOffers:', err);
+        }
+
+        // Save current skipForParsing before loading new offers
+        try {
+            const currentSkipForParsing = skipForParsingRef.current || skipForParsing;
+            if (Object.keys(currentSkipForParsing).length > 0) {
+                localStorage.setItem('offersSkipForParsing', JSON.stringify(currentSkipForParsing));
+                console.log('Saved skipForParsing before loadOffers:', currentSkipForParsing);
+            }
+        } catch (err) {
+            console.error('Error saving skipForParsing before loadOffers:', err);
         }
 
         setLoading(true);
@@ -369,8 +391,16 @@ function OffersList({ isAutoUpdatingEnabled = false, onToggleAutoUpdate }) {
                     // Get minPrice from saved values using itemId (stable identifier)
                     // Use ref to get latest value
                     const minPrice = currentMinPrices[itemId] || offer.minPrice;
+                    // Check if this offer should be skipped for parsing
+                    const currentSkipForParsing = skipForParsingRef.current || skipForParsing;
+                    const shouldSkip = currentSkipForParsing[itemId] === true;
 
                     if (!title || !offerId || !minPrice) continue;
+                    // Skip this offer if skip is enabled
+                    if (shouldSkip) {
+                        console.log(`Skipping offer ${title} (itemId: ${itemId}) - skip is enabled`);
+                        continue;
+                    }
                     if (!assetId) {
                         console.warn('No assetId found for offer', offerId, 'skipping update');
                         continue;
@@ -573,6 +603,18 @@ function OffersList({ isAutoUpdatingEnabled = false, onToggleAutoUpdate }) {
             } catch (err) {
                 console.error('Error saving minPrices before reload:', err);
             }
+
+            // Save skipForParsing to localStorage before reloading offers
+            try {
+                const currentSkipForParsing = skipForParsingRef.current || skipForParsing;
+                if (Object.keys(currentSkipForParsing).length > 0) {
+                    localStorage.setItem('offersSkipForParsing', JSON.stringify(currentSkipForParsing));
+                    console.log('Saved skipForParsing to localStorage before reload:', currentSkipForParsing);
+                    skipForParsingRef.current = currentSkipForParsing;
+                }
+            } catch (err) {
+                console.error('Error saving skipForParsing before reload:', err);
+            }
             
             // Reload offers after update (with delay to avoid infinite loop)
             await new Promise(resolve => setTimeout(resolve, 1000));
@@ -589,6 +631,11 @@ function OffersList({ isAutoUpdatingEnabled = false, onToggleAutoUpdate }) {
     useEffect(() => {
         minPricesRef.current = minPrices;
     }, [minPrices]);
+
+    // Update skipForParsingRef when skipForParsing change
+    useEffect(() => {
+        skipForParsingRef.current = skipForParsing;
+    }, [skipForParsing]);
 
     // Restore minPrices from localStorage when offers change
     // This ensures minPrices are always restored after offers are loaded
@@ -625,6 +672,53 @@ function OffersList({ isAutoUpdatingEnabled = false, onToggleAutoUpdate }) {
             }
         }
     }, [minPrices]);
+
+    // Restore skipForParsing from localStorage when offers change
+    // Also match assetId to itemId for offers created from OfferForm
+    useEffect(() => {
+        if (offers.length > 0) {
+            try {
+                const saved = localStorage.getItem('offersSkipForParsing');
+                if (saved) {
+                    const savedSkipForParsing = JSON.parse(saved);
+                    console.log('Restoring skipForParsing from localStorage (useEffect):', savedSkipForParsing);
+                    
+                    // Match assetId to itemId for newly created offers
+                    const matchedSkipForParsing = { ...savedSkipForParsing };
+                    offers.forEach(offer => {
+                        const itemId = offer.itemId;
+                        const assetId = offer.itemId || offer.extra?.assetId;
+                        // If we have skipForParsing by assetId but not by itemId, copy it
+                        if (assetId && savedSkipForParsing[assetId] && !savedSkipForParsing[itemId]) {
+                            matchedSkipForParsing[itemId] = savedSkipForParsing[assetId];
+                            // Optionally remove assetId entry after matching
+                            // delete matchedSkipForParsing[assetId];
+                        }
+                    });
+                    
+                    setSkipForParsing(matchedSkipForParsing);
+                    skipForParsingRef.current = matchedSkipForParsing;
+                } else {
+                    console.log('No saved skipForParsing in localStorage');
+                }
+            } catch (err) {
+                console.error('Error restoring skipForParsing from localStorage (useEffect):', err);
+            }
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [offers.length]);
+
+    // Save skipForParsing to localStorage whenever they change
+    useEffect(() => {
+        if (Object.keys(skipForParsing).length > 0 || Object.keys(skipForParsing).length === 0) {
+            try {
+                localStorage.setItem('offersSkipForParsing', JSON.stringify(skipForParsing));
+                console.log('Saved skipForParsing to localStorage:', skipForParsing);
+            } catch (err) {
+                console.error('Error saving skipForParsing to localStorage:', err);
+            }
+        }
+    }, [skipForParsing]);
 
     // Use toggle function from props if provided, otherwise use local state (for backward compatibility)
     const toggleAutoUpdate = onToggleAutoUpdate || (() => {
@@ -895,6 +989,28 @@ function OffersList({ isAutoUpdatingEnabled = false, onToggleAutoUpdate }) {
                                         <td>{floatValue}</td>
                                         <td>
                                             <div className="offer-actions">
+                                                <label 
+                                                    className="skip-checkbox-label"
+                                                    title={skipForParsing[itemId] 
+                                                        ? "Офер пропускається під час парсингу (натисніть щоб увімкнути парсинг)" 
+                                                        : "Офер бере участь у парсингу (натисніть щоб пропустити)"}
+                                                >
+                                                    <input
+                                                        type="checkbox"
+                                                        className="skip-checkbox"
+                                                        checked={skipForParsing[itemId] === true}
+                                                        onChange={(e) => {
+                                                            setSkipForParsing(prev => ({
+                                                                ...prev,
+                                                                [itemId]: e.target.checked
+                                                            }));
+                                                        }}
+                                                        onClick={(e) => e.stopPropagation()}
+                                                    />
+                                                    <span className="skip-checkbox-custom">
+                                                        {skipForParsing[itemId] ? '✓' : ''}
+                                                    </span>
+                                                </label>
                                                 <button 
                                                     className="btn-icon" 
                                                     onClick={() => handleDelete(offer)}

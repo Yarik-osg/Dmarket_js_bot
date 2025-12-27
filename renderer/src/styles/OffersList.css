@@ -111,6 +111,86 @@
 .offer-actions {
     display: flex;
     gap: 8px;
+    align-items: center;
+    justify-content: flex-start;
+}
+
+.skip-checkbox-label {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    position: relative;
+}
+
+.skip-checkbox {
+    position: absolute;
+    opacity: 0;
+    width: 0;
+    height: 0;
+    margin: 0;
+    padding: 0;
+}
+
+.skip-checkbox-custom {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    min-width: 28px;
+    min-height: 28px;
+    background-color: #2a2a2a;
+    border: 2px solid #555;
+    border-radius: 6px;
+    transition: all 0.2s ease;
+    font-size: 16px;
+    color: #999;
+    user-select: none;
+    font-weight: bold;
+    box-sizing: border-box;
+}
+
+.skip-checkbox-label:hover .skip-checkbox-custom {
+    border-color: #666;
+    background-color: #333;
+}
+
+.skip-checkbox:checked + .skip-checkbox-custom {
+    background-color: #b31818;
+    border-color: #b31818;
+    color: #ffffff;
+}
+
+.skip-checkbox:checked + .skip-checkbox-custom:hover {
+    background-color: #9a1414;
+    border-color: #9a1414;
+}
+
+.btn-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    min-width: 28px;
+    min-height: 28px;
+    background-color: #007bff;
+    color: #ffffff;
+    border: 2px solid #007bff;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 14px;
+    padding: 0;
+    margin: 0;
+    transition: all 0.2s ease;
+    box-sizing: border-box;
+    user-select: none;
+}
+
+.btn-icon:hover {
+    background-color: #0056b3;
+    border-color: #0056b3;
 }
 
 .min-price-input {
