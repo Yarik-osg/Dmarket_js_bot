@@ -1,15 +1,18 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useAuth } from '../contexts/AuthContext.jsx';
+import { useNotifications } from '../contexts/NotificationContext.jsx';
 import { ApiService } from '../services/apiService.js';
 import '../styles/BalanceDisplay.css';
 
 function BalanceDisplay() {
     const { client } = useAuth();
+    const { checkLowBalance } = useNotifications();
     const [balance, setBalance] = useState(null);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
     const loadingRef = useRef(false);
     const errorRef = useRef(null);
+    const lastBalanceRef = useRef(null);
 
     const apiService = useMemo(() => {
         return client ? new ApiService(client) : null;
@@ -33,6 +36,12 @@ function BalanceDisplay() {
             setBalance(data);
             setError(null);
             errorRef.current = null;
+            
+            // Check for low balance
+            checkLowBalance(data);
+            
+            // Store last balance for comparison
+            lastBalanceRef.current = data;
         } catch (err) {
             console.error('Error loading balance:', err);
             const errorMsg = err.message || 'Unknown error';
@@ -44,10 +53,16 @@ function BalanceDisplay() {
         }
     };
 
-    // Load balance only once when component mounts
+    // Load balance on mount and periodically
     useEffect(() => {
         if (apiService) {
             loadBalance();
+            // Check balance every 5 minutes
+            const interval = setInterval(() => {
+                loadBalance();
+            }, 5 * 60 * 1000);
+            
+            return () => clearInterval(interval);
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [apiService]);

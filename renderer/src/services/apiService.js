@@ -164,8 +164,6 @@ class ApiService {
     }
 
     async getUserTargets(params = {}) {
-        console.log('3')
-        console.log('5')
         const path = '/exchange/v1/user/targets';
         // Default parameters
         const defaultParams = {
@@ -195,6 +193,26 @@ class ApiService {
     async getUserBalance(params = {}) {
         const path = '/account/v1/balance';
         return await this.client.call('GET', path, params);
+    }
+
+    // Exchange API - Transaction History
+    async getTransactionHistory(params = {}) {
+        const path = '/exchange/v1/history';
+        // Default parameters according to DMarket API
+        const defaultParams = {
+            version: 'V3',
+            activities: '', // Empty = all activities
+            from: 0,
+            createdFrom: 0,
+            statuses: '', // Empty = all statuses
+            to: 0,
+            createdTo: 0,
+            sortBy: 'createdAt', // Sort by creation date
+            offset: 0,
+            limit: 20 // Get last 20 transactions
+        };
+        const finalParams = { ...defaultParams, ...params };
+        return await this.client.call('GET', path, finalParams);
     }
 
     // Marketplace API - Create Offers

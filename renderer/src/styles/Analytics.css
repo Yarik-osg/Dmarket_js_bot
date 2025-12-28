@@ -1,0 +1,337 @@
+.analytics-container {
+    padding: 20px;
+    max-width: 1400px;
+    margin: 0 auto;
+}
+
+.analytics-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 30px;
+}
+
+.analytics-title {
+    font-size: 28px;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.analytics-period-select {
+    padding: 8px 16px;
+    border-radius: 6px;
+    border: 1px solid var(--border-color);
+    background: var(--bg-secondary);
+    color: var(--text-primary);
+    font-size: 14px;
+    cursor: pointer;
+}
+
+.analytics-period-select:hover {
+    border-color: var(--accent-color);
+}
+
+.analytics-stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 20px;
+    margin-bottom: 40px;
+}
+
+.stat-card {
+    background: var(--bg-secondary);
+    border-radius: 12px;
+    padding: 24px;
+    border: 1px solid var(--border-color);
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.stat-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px var(--shadow);
+}
+
+.stat-card h3 {
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--text-secondary);
+    margin-bottom: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.stat-value {
+    font-size: 32px;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin-bottom: 8px;
+}
+
+.stat-value.positive {
+    color: var(--success-color);
+}
+
+.stat-value.negative {
+    color: var(--error-color);
+}
+
+.stat-label {
+    font-size: 13px;
+    color: var(--text-tertiary);
+}
+
+.analytics-section {
+    margin-bottom: 40px;
+}
+
+.analytics-section-title {
+    font-size: 20px;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: 20px;
+}
+
+.analytics-table {
+    width: 100%;
+    border-collapse: collapse;
+    background: var(--bg-secondary);
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+.analytics-table thead {
+    background: var(--bg-tertiary);
+}
+
+.analytics-table th {
+    padding: 16px;
+    text-align: left;
+    font-weight: 600;
+    font-size: 13px;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.analytics-table td {
+    padding: 16px;
+    border-top: 1px solid var(--border-color);
+    color: var(--text-primary);
+}
+
+.analytics-table tbody tr:hover {
+    background: var(--bg-tertiary);
+}
+
+.analytics-table .item-title {
+    font-weight: 500;
+    max-width: 300px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.analytics-table .revenue {
+    font-weight: 600;
+}
+
+.analytics-table .revenue.positive {
+    color: var(--success-color);
+}
+
+.analytics-table .revenue.negative {
+    color: var(--error-color);
+}
+
+.analytics-empty {
+    text-align: center;
+    padding: 40px;
+    color: var(--text-tertiary);
+    font-size: 14px;
+}
+
+.chart-container {
+    background: var(--bg-secondary);
+    border-radius: 12px;
+    padding: 24px;
+    border: 1px solid var(--border-color);
+}
+
+.chart-wrapper {
+    position: relative;
+    width: 100%;
+    height: 340px;
+    margin-bottom: 16px;
+    padding-bottom: 30px;
+}
+
+.simple-chart {
+    width: 100%;
+    height: calc(100% - 30px);
+    overflow: visible;
+}
+
+.chart-bar {
+    transition: opacity 0.2s;
+}
+
+.chart-bar:hover {
+    opacity: 1;
+    cursor: pointer;
+}
+
+.chart-date-label {
+    user-select: none;
+    pointer-events: none;
+    font-family: inherit;
+}
+
+.chart-tooltip {
+    position: absolute;
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    padding: 10px 14px;
+    font-size: 13px;
+    color: var(--text-primary);
+    white-space: pre-line;
+    z-index: 1000;
+    pointer-events: none;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    min-width: 240px;
+    max-width: 300px;
+    text-align: left;
+    line-height: 1.5;
+}
+
+.chart-tooltip div {
+    margin: 2px 0;
+}
+
+.chart-legend {
+    display: flex;
+    gap: 24px;
+    justify-content: center;
+    margin-top: 25px;
+}
+
+.legend-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 14px;
+    color: var(--text-secondary);
+}
+
+.legend-color {
+    width: 16px;
+    height: 16px;
+    border-radius: 4px;
+}
+
+.legend-color.sales {
+    background: var(--success-color);
+}
+
+.legend-color.purchases {
+    background: var(--error-color);
+}
+
+/* Список транзакцій */
+.transactions-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-top: 16px;
+}
+
+.transaction-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    transition: background 0.2s, border-color 0.2s;
+}
+
+.transaction-item:hover {
+    background: var(--bg-tertiary);
+    border-color: var(--border-hover);
+}
+
+.transaction-type {
+    flex-shrink: 0;
+}
+
+.transaction-badge {
+    display: inline-block;
+    padding: 4px 10px;
+    border-radius: 4px;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.transaction-badge.sale {
+    background: rgba(76, 175, 80, 0.2);
+    color: var(--success-color);
+    border: 1px solid rgba(76, 175, 80, 0.3);
+}
+
+.transaction-badge.purchase {
+    background: rgba(244, 67, 54, 0.2);
+    color: var(--error-color);
+    border: 1px solid rgba(244, 67, 54, 0.3);
+}
+
+.transaction-details {
+    flex: 1;
+    min-width: 0;
+}
+
+.transaction-item-title {
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--text-primary);
+    margin-bottom: 4px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.transaction-meta {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 12px;
+    color: var(--text-secondary);
+}
+
+.transaction-date {
+    font-size: 12px;
+    color: var(--text-secondary);
+}
+
+.transaction-amount {
+    flex-shrink: 0;
+    font-size: 15px;
+    font-weight: 600;
+    padding: 6px 12px;
+    border-radius: 6px;
+    min-width: 80px;
+    text-align: right;
+}
+
+.transaction-amount.positive {
+    color: var(--success-color);
+    background: rgba(76, 175, 80, 0.1);
+}
+
+.transaction-amount.negative {
+    color: var(--error-color);
+    background: rgba(244, 67, 54, 0.1);
+}
+

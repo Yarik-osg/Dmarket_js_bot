@@ -1,25 +1,20 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext } from 'react';
 import ukTranslations from '../locales/uk.json';
 
 const LocaleContext = createContext();
 
 export function LocaleProvider({ children }) {
-    const [locale, setLocale] = useState('uk');
-    const [translations, setTranslations] = useState(ukTranslations);
-
-    useEffect(() => {
-        // Load translations based on locale
-        if (locale === 'uk') {
-            setTranslations(ukTranslations);
-        }
-    }, [locale]);
-
+    // Завжди використовуємо українську мову
     const t = (key) => {
-        return translations[key] || key;
+        return ukTranslations[key] || key;
     };
 
     return (
-        <LocaleContext.Provider value={{ locale, setLocale, t }}>
+        <LocaleContext.Provider value={{ 
+            locale: 'uk', 
+            setLocale: () => {}, // Пуста функція, мова не змінюється
+            t 
+        }}>
             {children}
         </LocaleContext.Provider>
     );

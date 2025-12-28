@@ -2,6 +2,8 @@ import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react'
 import { useAuth } from '../contexts/AuthContext.jsx';
 import { useLocale } from '../contexts/LocaleContext.jsx';
 import { useLogs } from '../contexts/LogsContext.jsx';
+import { useAnalytics } from '../contexts/AnalyticsContext.jsx';
+import { useNotifications } from '../contexts/NotificationContext.jsx';
 import { ApiService } from '../services/apiService.js';
 import OfferForm from './OfferForm.jsx';
 import '../styles/OffersList.css';
@@ -10,7 +12,10 @@ function OffersList({ isAutoUpdatingEnabled = false, onToggleAutoUpdate }) {
     const { t } = useLocale();
     const { client } = useAuth();
     const { addLog } = useLogs();
+    const { addTransaction } = useAnalytics();
+    const { showNotification } = useNotifications();
     const [offers, setOffers] = useState([]);
+    const previousOffersRef = useRef([]);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
     const [searchQuery, setSearchQuery] = useState('');
@@ -86,6 +91,67 @@ function OffersList({ isAutoUpdatingEnabled = false, onToggleAutoUpdate }) {
             // Filter only offers (type === 'offer')
             const offersList = response?.objects?.filter(obj => obj.type === 'offer') || [];
             console.log('Loaded offers:', offersList.length, offersList);
+            
+            // Check for sold offers (offers that disappeared)
+            const previousOffers = previousOffersRef.current;
+            console.log('previousOffers', previousOffers);
+            if (previousOffers.length > 0) {
+                const currentOfferIds = new Set(offersList.map(o => o.itemId || o.extra?.offerId));
+                const soldOffers = previousOffers.filter(prevOffer => {
+                    const prevId = prevOffer.itemId || prevOffer.extra?.offerId;
+                    return prevId && !currentOfferIds.has(prevId);
+                });
+
+                // Process sold offers
+                soldOffers.forEach(soldOffer => {
+                    console.log('soldOffer', soldOffer);
+                    const title = soldOffer.title || soldOffer.extra?.name || 'Unknown Item';
+                    const price = soldOffer.price?.USD || soldOffer.price?.amount || soldOffer.price || '0';
+                    const assetId = soldOffer.itemId ||soldOffer.details?.itemId || soldOffer.extra?.itemId;
+                    // Convert price to dollars
+                    let amount = 0;
+                    if (typeof price === 'string') {
+                        const cents = parseFloat(price);
+                        amount = cents >= 10 ? cents / 100 : cents;
+                    } else if (typeof price === 'number') {
+                        amount = price >= 10 ? price / 100 : price;
+                    }
+
+                    // Add to analytics
+                    if (addTransaction) {
+                        addTransaction({
+                            type: 'sale',
+                            itemTitle: title,
+                            assetId: assetId,
+                            amount: amount,
+                            createdAt: new Date().toISOString(),
+                            soldAt: new Date().toISOString()
+                        });
+                    }
+
+                    // Send notification
+                    if (showNotification) {
+                        showNotification({
+                            type: 'sales',
+                            title: 'Продаж',
+                            message: `${title} - $${amount.toFixed(2)}`,
+                            level: 'success',
+                            sendExternal: true
+                        });
+                    }
+
+                    // Log
+                    addLog({
+                        type: 'success',
+                        category: 'offer',
+                        message: `Предмет продано: ${title}`,
+                        details: { title, amount: amount.toFixed(2) }
+                    });
+                });
+            }
+
+            // Update previous offers reference
+            previousOffersRef.current = offersList;
             setOffers(offersList);
             
             // minPrices will be restored by useEffect when offers change

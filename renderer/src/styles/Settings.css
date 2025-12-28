@@ -11,7 +11,7 @@
 .settings-title {
     margin: 0;
     font-size: 28px;
-    color: #fff;
+    color: var(--text-primary);
     font-weight: 600;
 }
 
@@ -22,22 +22,22 @@
 }
 
 .settings-section {
-    background: #1e1e1e;
+    background: var(--bg-secondary);
     border-radius: 8px;
     padding: 25px;
-    border: 1px solid #333;
+    border: 1px solid var(--border-color);
 }
 
 .settings-section-title {
     margin: 0 0 10px 0;
     font-size: 20px;
-    color: #fff;
+    color: var(--text-primary);
     font-weight: 600;
 }
 
 .settings-description {
     margin: 0 0 20px 0;
-    color: #aaa;
+    color: var(--text-secondary);
     font-size: 14px;
     line-height: 1.5;
 }
@@ -55,7 +55,7 @@
 }
 
 .settings-field label {
-    color: #fff;
+    color: var(--text-primary);
     font-size: 14px;
     font-weight: 500;
 }
@@ -69,10 +69,10 @@
 .settings-input {
     width: 100%;
     padding: 12px;
-    border: 1px solid #444;
+    border: 1px solid var(--border-color);
     border-radius: 4px;
-    background: #2a2a2a;
-    color: #fff;
+    background: var(--bg-primary);
+    color: var(--text-primary);
     font-size: 14px;
     font-family: 'Courier New', monospace;
     transition: border-color 0.2s;
@@ -80,7 +80,7 @@
 
 .settings-input:focus {
     outline: none;
-    border-color: #007bff;
+    border-color: var(--accent-color);
 }
 
 .settings-input:disabled {
@@ -180,5 +180,34 @@
 
 .btn-danger:hover:not(:disabled) {
     background: #c82333;
+}
+
+.theme-selector {
+    display: flex;
+    gap: 12px;
+}
+
+.theme-btn {
+    flex: 1;
+    padding: 12px 20px;
+    border: 2px solid var(--border-color);
+    border-radius: 8px;
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.theme-btn:hover {
+    border-color: var(--accent-color);
+    background: var(--bg-secondary);
+}
+
+.theme-btn.active {
+    border-color: var(--accent-color);
+    background: var(--accent-color);
+    color: white;
 }
 

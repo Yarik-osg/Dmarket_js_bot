@@ -1,16 +1,18 @@
 import React from 'react';
 import { useLocale } from '../../contexts/LocaleContext.jsx';
+import { useNotifications } from '../../contexts/NotificationContext.jsx';
 import BalanceDisplay from '../BalanceDisplay.jsx';
 import '../../styles/Sidebar.css';
 
 function Sidebar({ activeTab, onTabChange, isTargetsParsingEnabled, isOffersParsingEnabled, onToggleTargetsParsing, onToggleOffersParsing }) {
     const { t } = useLocale();
+    const { unreadCount } = useNotifications();
 
     const menuItems = [
         { id: 'orders', label: t('nav.orders'), icon: '📋' },
         { id: 'offers', label: t('nav.offers'), icon: '💰' },
-        { id: 'phases', label: t('nav.phases'), icon: '⚡' },
-        { id: 'floats', label: t('nav.floats'), icon: '⚡' },
+        { id: 'analytics', label: t('nav.analytics'), icon: '📈' },
+        { id: 'notifications', label: t('nav.notifications'), icon: '🔔', badge: unreadCount > 0 ? unreadCount : null },
         { id: 'settings', label: t('nav.settings'), icon: '⚙️' },
         { id: 'logs', label: t('nav.logs'), icon: '📊' }
     ];
@@ -26,6 +28,9 @@ function Sidebar({ activeTab, onTabChange, isTargetsParsingEnabled, isOffersPars
                     >
                         <span className="sidebar-icon">{item.icon}</span>
                         <span className="sidebar-label">{item.label}</span>
+                        {item.badge && item.badge > 0 && (
+                            <span className="sidebar-badge">{item.badge}</span>
+                        )}
                     </div>
                 ))}
             </div>

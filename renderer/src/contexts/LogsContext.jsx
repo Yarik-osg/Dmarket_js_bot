@@ -34,6 +34,20 @@ export function LogsProvider({ children }) {
             }
             return updated;
         });
+
+        // Send notification for errors - use global reference set by App
+        if (log.type === 'error' && window.notificationContext) {
+            try {
+                window.notificationContext.showNotification({
+                    type: 'apiErrors',
+                    title: 'Помилка API',
+                    message: log.message,
+                    level: 'error'
+                });
+            } catch (e) {
+                // Notification context not available
+            }
+        }
     }, []);
 
     const clearLogs = useCallback(() => {
