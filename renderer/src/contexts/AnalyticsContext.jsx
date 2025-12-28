@@ -5,15 +5,45 @@ const AnalyticsContext = createContext();
 export function AnalyticsProvider({ children }) {
     const [transactions, setTransactions] = useState(() => {
         const saved = localStorage.getItem('analytics_transactions');
-        return saved ? JSON.parse(saved) : [];
+        const parsed = saved ? JSON.parse(saved) : [];
+        
+        // Видаляємо тестові транзакції при завантаженні
+        const filtered = parsed.filter(t => {
+            const id = t.originalId || t.id;
+            if (id) {
+                const idStr = id.toString();
+                if (idStr.startsWith('test-')) {
+                    return false;
+                }
+            }
+            return true;
+        });
+        
+        // Якщо були видалені тестові транзакції, зберігаємо очищений список
+        if (filtered.length !== parsed.length) {
+            console.log(`Removed ${parsed.length - filtered.length} test transactions from localStorage`);
+            localStorage.setItem('analytics_transactions', JSON.stringify(filtered));
+        }
+        
+        return filtered;
     });
 
     const addTransaction = useCallback((transaction) => {
+        // Перевіряємо, чи це тестова транзакція (перевіряємо оригінальний ID, якщо він переданий)
+        const originalId = transaction.originalId || transaction.id;
+        if (originalId) {
+            const idStr = originalId.toString();
+            if (idStr.startsWith('test-')) {
+                console.log('Skipping test transaction:', originalId);
+                return; // Не додаємо тестові транзакції
+            }
+        }
+        
         // Використовуємо createdAt з транзакції, якщо є, інакше поточний час
         const timestamp = transaction.createdAt || transaction.timestamp || new Date().toISOString();
 
         const newTransaction = {
-            id: Date.now() + Math.random(),
+            id: originalId || (Date.now() + Math.random()), // Використовуємо оригінальний ID, якщо є
             timestamp: timestamp, // Використовуємо час транзакції з API
             ...transaction
         };
@@ -23,7 +53,8 @@ export function AnalyticsProvider({ children }) {
             itemTitle: newTransaction.itemTitle,
             assetId: newTransaction.assetId,
             amount: newTransaction.amount,
-            timestamp: newTransaction.timestamp
+            timestamp: newTransaction.timestamp,
+            id: newTransaction.id
         });
         
         setTransactions(prev => {
@@ -46,6 +77,12 @@ export function AnalyticsProvider({ children }) {
             }[period] || 30 * 24 * 60 * 60 * 1000;
 
         const filtered = transactions.filter(t => {
+            // Виключаємо тестові транзакції (ID починається з "test-")
+            const id = t.id?.toString() || '';
+            if (id.startsWith('test-')) {
+                return false;
+            }
+            
             const tDate = new Date(t.timestamp);
             const timeDiff = now - tDate;
             const isInPeriod = periodMs === Infinity || timeDiff <= periodMs;
@@ -80,7 +117,11 @@ export function AnalyticsProvider({ children }) {
         // Якщо asset id немає, використовуємо комбінацію назви предмета + timestamp як fallback
         // Для продажів у періоді шукаємо покупки серед ВСІХ транзакцій (не тільки в періоді)
         // щоб врахувати покупки, які були до початку періоду
-        const allPurchases = transactions.filter(t => t.type === 'purchase');
+        // Виключаємо тестові транзакції
+        const allPurchases = transactions.filter(t => {
+            const id = t.id?.toString() || '';
+            return t.type === 'purchase' && !id.startsWith('test-');
+        });
         
         const assetPurchases = {}; // Ключ - asset id (itemId) або fallback
         const assetSales = {}; // Ключ - asset id (itemId) або fallback
@@ -291,7 +332,155 @@ export function AnalyticsProvider({ children }) {
             .sort((a, b) => a.date.localeCompare(b.date));
     };
 
-    // Функція для завантаження існуючих транзакцій з API
+    // Функція для повного перезавантаження транзакцій (очищає localStorage і завантажує з API)
+    const reloadTransactionsFromAPI = useCallback(async (apiService, limit = 300) => {
+        if (!apiService) {
+            console.warn('API service not available for reloading transactions');
+            return;
+        }
+
+        try {
+            console.log('Reloading all transactions from API (clearing localStorage)...');
+            // Очищаємо localStorage
+            localStorage.removeItem('analytics_transactions');
+            
+            const response = await apiService.getTransactionHistory({
+                limit: limit,
+                sortBy: 'createdAt'
+            });
+
+            const transactions = response?.objects || response?.transactions || response?.result || [];
+            console.log(`Loaded ${transactions.length} transactions from API`);
+
+            if (transactions.length === 0) {
+                setTransactions([]);
+                return;
+            }
+
+            // Перетворюємо транзакції з API в формат аналітики
+            const analyticsTransactions = transactions.map(tx => {
+                const transactionType = tx.type || '';
+                const typeLower = transactionType.toLowerCase();
+                const isSale = typeLower === 'sell' || typeLower === 'sale';
+                const isPurchase = typeLower === 'purchase' || typeLower === 'buy' || 
+                                  typeLower === 'target_closed' || 
+                                  (typeLower.includes('target') && typeLower.includes('closed'));
+
+                // Отримуємо amount
+                let amount = 0;
+                if (tx.changes && Array.isArray(tx.changes) && tx.changes.length > 0) {
+                    const moneyChange = tx.changes.find(change => change.money);
+                    if (moneyChange && moneyChange.money) {
+                        amount = parseFloat(moneyChange.money.amount || 0);
+                    }
+                }
+
+                // Отримуємо asset id (itemId) - унікальний ідентифікатор конкретного екземпляра предмета
+                // DMarket API має itemId в details.itemId (не в details.extra.itemId)
+                const assetId = tx.details?.itemId || 
+                               tx.itemId || 
+                               tx.assetId || 
+                               tx.asset_id ||
+                               null; // Не використовуємо transaction id як fallback
+                
+                // Витягуємо float з деталей транзакції
+                // DMarket API має floatValue в details.extra.floatValue
+                const floatValue = tx.details?.extra?.floatValue || 
+                                  tx.details?.extra?.float ||
+                                  tx.details?.floatValue ||
+                                  tx.details?.float ||
+                                  tx.extra?.floatValue ||
+                                  tx.extra?.float ||
+                                  null;
+                
+                // Логуємо детальну структуру, якщо float не знайдено
+                if (!floatValue && tx.details) {
+                    console.log('Loading transaction from API (float not found):', {
+                        type: transactionType,
+                        subject: tx.subject,
+                        hasDetails: !!tx.details,
+                        detailsItemId: tx.details?.itemId,
+                        assetId: assetId,
+                        floatValue: floatValue,
+                        detailsKeys: tx.details ? Object.keys(tx.details) : [],
+                        hasExtra: !!tx.details.extra,
+                        extraKeys: tx.details?.extra ? Object.keys(tx.details.extra) : [],
+                        fullDetails: tx.details
+                    });
+                } else {
+                    console.log('Loading transaction from API:', {
+                        type: transactionType,
+                        subject: tx.subject,
+                        hasDetails: !!tx.details,
+                        detailsItemId: tx.details?.itemId,
+                        assetId: assetId,
+                        floatValue: floatValue
+                    });
+                }
+
+                // Отримуємо createdAt
+                let createdAt = new Date().toISOString();
+                if (tx.createdAt) {
+                    const timestamp = typeof tx.createdAt === 'number' 
+                        ? (tx.createdAt < 10000000000 ? tx.createdAt * 1000 : tx.createdAt)
+                        : new Date(tx.createdAt).getTime();
+                    createdAt = new Date(timestamp).toISOString();
+                }
+
+                const transactionId = tx.id || tx.transactionId || tx.trxId;
+                const status = tx.status || 'unknown'; // Зберігаємо статус транзакції
+                return {
+                    id: transactionId || (Date.now() + Math.random()),
+                    originalId: transactionId, // Зберігаємо оригінальний ID для перевірки тестових транзакцій
+                    type: isSale ? 'sale' : 'purchase',
+                    itemTitle: tx.subject || tx.title || 'Unknown Item',
+                    assetId: assetId, // Додаємо asset id (itemId з details.itemId) для зіставлення
+                    amount: amount,
+                    floatValue: floatValue, // Додаємо float value
+                    status: status, // Додаємо статус транзакції
+                    createdAt: createdAt,
+                    timestamp: createdAt, // Використовуємо createdAt як timestamp
+                    soldAt: isSale ? createdAt : null
+                };
+            }).filter(tx => {
+                // Виключаємо тестові транзакції (ID починається з "test-")
+                const id = tx.originalId || tx.id;
+                if (id) {
+                    const idStr = id.toString();
+                    if (idStr.startsWith('test-')) {
+                        console.log('Filtering out test transaction from API:', id);
+                        return false;
+                    }
+                }
+                
+                // Фільтруємо тільки продажі та покупки
+                // Дозволяємо транзакції без assetId (для старих транзакцій), але логуємо попередження
+                const isValid = tx.type === 'sale' || tx.type === 'purchase';
+                if (!isValid) {
+                    return false;
+                }
+                if (!tx.assetId) {
+                    console.warn('Transaction without assetId (will use fallback):', {
+                        type: tx.type,
+                        itemTitle: tx.itemTitle,
+                        id: tx.id
+                    });
+                }
+                return true;
+            }); // Тільки продажі та покупки (з assetId або без)
+
+            console.log(`Processed ${analyticsTransactions.length} transactions for analytics`);
+
+            // Зберігаємо всі транзакції (повне перезавантаження)
+            setTransactions(analyticsTransactions);
+            localStorage.setItem('analytics_transactions', JSON.stringify(analyticsTransactions));
+            console.log(`Reloaded ${analyticsTransactions.length} transactions from API`);
+        } catch (error) {
+            console.error('Error reloading transactions from API:', error);
+        }
+    }, []);
+
+    // Функція для завантаження існуючих транзакцій з API (додає тільки нові)
     const loadTransactionsFromAPI = useCallback(async (apiService, limit = 100) => {
         if (!apiService) {
             console.warn('API service not available for loading transactions');
@@ -338,13 +527,40 @@ export function AnalyticsProvider({ children }) {
                                tx.asset_id ||
                                null; // Не використовуємо transaction id як fallback
                 
-                console.log('Loading transaction from API:', {
-                    type: transactionType,
-                    subject: tx.subject,
-                    hasDetails: !!tx.details,
-                    detailsItemId: tx.details?.itemId,
-                    assetId: assetId
-                });
+                // Витягуємо float з деталей транзакції
+                // DMarket API має floatValue в details.extra.floatValue
+                const floatValue = tx.details?.extra?.floatValue || 
+                                  tx.details?.extra?.float ||
+                                  tx.details?.floatValue ||
+                                  tx.details?.float ||
+                                  tx.extra?.floatValue ||
+                                  tx.extra?.float ||
+                                  null;
+                
+                // Логуємо детальну структуру, якщо float не знайдено
+                if (!floatValue && tx.details) {
+                    console.log('Loading transaction from API (float not found):', {
+                        type: transactionType,
+                        subject: tx.subject,
+                        hasDetails: !!tx.details,
+                        detailsItemId: tx.details?.itemId,
+                        assetId: assetId,
+                        floatValue: floatValue,
+                        detailsKeys: tx.details ? Object.keys(tx.details) : [],
+                        hasExtra: !!tx.details.extra,
+                        extraKeys: tx.details?.extra ? Object.keys(tx.details.extra) : [],
+                        fullDetails: tx.details
+                    });
+                } else {
+                    console.log('Loading transaction from API:', {
+                        type: transactionType,
+                        subject: tx.subject,
+                        hasDetails: !!tx.details,
+                        detailsItemId: tx.details?.itemId,
+                        assetId: assetId,
+                        floatValue: floatValue
+                    });
+                }
 
                 // Отримуємо createdAt
                 let createdAt = new Date().toISOString();
@@ -355,17 +571,32 @@ export function AnalyticsProvider({ children }) {
                     createdAt = new Date(timestamp).toISOString();
                 }
 
+                const transactionId = tx.id || tx.transactionId || tx.trxId;
+                const status = tx.status || 'unknown'; // Зберігаємо статус транзакції
                 return {
-                    id: tx.id || tx.transactionId || Date.now() + Math.random(),
+                    id: transactionId || (Date.now() + Math.random()),
+                    originalId: transactionId, // Зберігаємо оригінальний ID для перевірки тестових транзакцій
                     type: isSale ? 'sale' : 'purchase',
                     itemTitle: tx.subject || tx.title || 'Unknown Item',
                     assetId: assetId, // Додаємо asset id (itemId з details.itemId) для зіставлення
                     amount: amount,
+                    floatValue: floatValue, // Додаємо float value
+                    status: status, // Додаємо статус транзакції
                     createdAt: createdAt,
                     timestamp: createdAt, // Використовуємо createdAt як timestamp
                     soldAt: isSale ? createdAt : null
                 };
             }).filter(tx => {
+                // Виключаємо тестові транзакції (ID починається з "test-")
+                const id = tx.originalId || tx.id;
+                if (id) {
+                    const idStr = id.toString();
+                    if (idStr.startsWith('test-')) {
+                        console.log('Filtering out test transaction from API:', id);
+                        return false;
+                    }
+                }
+                
                 // Фільтруємо тільки продажі та покупки
                 // Дозволяємо транзакції без assetId (для старих транзакцій), але логуємо попередження
                 const isValid = tx.type === 'sale' || tx.type === 'purchase';
@@ -409,7 +640,8 @@ export function AnalyticsProvider({ children }) {
             transactions,
             addTransaction,
             getStatistics,
-            loadTransactionsFromAPI
+            loadTransactionsFromAPI,
+            reloadTransactionsFromAPI
         }}>
             {children}
         </AnalyticsContext.Provider>

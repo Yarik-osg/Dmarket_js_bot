@@ -445,12 +445,40 @@ export class TransactionMonitor {
                     detailsKeys: transaction.details ? Object.keys(transaction.details) : []
                 });
             }
+            console.log('transaction', transaction);
+            // Витягуємо float з деталей транзакції
+            // DMarket API має floatValue в details.extra.floatValue
+            const floatValue = transaction.details?.extra?.floatValue || 
+                              transaction.details?.extra?.float ||
+                              transaction.details?.floatValue ||
+                              transaction.details?.float ||
+                              transaction.extra?.floatValue ||
+                              transaction.extra?.float ||
+                              null;
             
+            // Логуємо для діагностики
+            if (!floatValue && transaction.details) {
+                console.log('Float not found in transaction:', {
+                    hasDetails: !!transaction.details,
+                    hasExtra: !!transaction.details.extra,
+                    detailsKeys: transaction.details ? Object.keys(transaction.details) : [],
+                    extraKeys: transaction.details?.extra ? Object.keys(transaction.details.extra) : [],
+                    fullDetails: transaction.details
+                });
+            }
+            
+            // Передаємо оригінальний ID транзакції для перевірки тестових транзакцій
+            const transactionId = transaction.id || transaction.transactionId || transaction.trxId;
+            const status = transaction.status || 'unknown'; // Зберігаємо статус транзакції
             this.analyticsContext.addTransaction({
+                id: transactionId, // Передаємо оригінальний ID
+                originalId: transactionId, // Також передаємо як originalId для перевірки
                 type: isSale ? 'sale' : 'purchase',
                 itemTitle: itemTitle,
                 assetId: assetId, // Додаємо asset id (itemId з details.itemId) для зіставлення
                 amount: amount,
+                floatValue: floatValue, // Додаємо float value
+                status: status, // Додаємо статус транзакції
                 createdAt: createdAt,
                 soldAt: isSale ? createdAt : null
             });
