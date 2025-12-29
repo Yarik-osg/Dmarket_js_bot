@@ -103,6 +103,8 @@ function OffersList({ isAutoUpdatingEnabled = false, onToggleAutoUpdate }) {
                 });
 
                 // Process sold offers
+                // Примітка: сповіщення про продажі відправляються через TransactionMonitor,
+                // тому тут тільки додаємо до аналітики та логуємо
                 soldOffers.forEach(soldOffer => {
                     console.log('soldOffer', soldOffer);
                     const title = soldOffer.title || soldOffer.extra?.name || 'Unknown Item';
@@ -118,6 +120,8 @@ function OffersList({ isAutoUpdatingEnabled = false, onToggleAutoUpdate }) {
                     }
 
                     // Add to analytics
+                    // Примітка: TransactionMonitor також додає транзакції, але тут ми додаємо
+                    // для випадків, коли TransactionMonitor ще не виявив транзакцію
                     if (addTransaction) {
                         addTransaction({
                             type: 'sale',
@@ -126,17 +130,6 @@ function OffersList({ isAutoUpdatingEnabled = false, onToggleAutoUpdate }) {
                             amount: amount,
                             createdAt: new Date().toISOString(),
                             soldAt: new Date().toISOString()
-                        });
-                    }
-
-                    // Send notification
-                    if (showNotification) {
-                        showNotification({
-                            type: 'sales',
-                            title: 'Продаж',
-                            message: `${title} - $${amount.toFixed(2)}`,
-                            level: 'success',
-                            sendExternal: true
                         });
                     }
 

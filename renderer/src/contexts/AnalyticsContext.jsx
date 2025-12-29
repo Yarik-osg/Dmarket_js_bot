@@ -280,6 +280,12 @@ export function AnalyticsProvider({ children }) {
         
         console.log('Final assetStats:', Object.keys(assetStats).length, 'items');
         
+        // Підраховуємо загальний прибуток зі зіставлених покупок-продажів
+        const matchedProfit = Object.values(assetStats).reduce((sum, stats) => sum + stats.profit, 0);
+        const matchedRevenue = Object.values(assetStats).reduce((sum, stats) => sum + stats.revenue, 0);
+        const matchedCost = Object.values(assetStats).reduce((sum, stats) => sum + stats.cost, 0);
+        const matchedCount = Object.values(assetStats).reduce((sum, stats) => sum + stats.count, 0);
+        
         const topItems = Object.entries(assetStats)
             .map(([title, stats]) => ({
                 title,
@@ -300,6 +306,11 @@ export function AnalyticsProvider({ children }) {
             profitMargin: totalSales > 0 ? (profit / totalSales) * 100 : 0,
             salesCount: sales.length,
             purchasesCount: purchases.length,
+            matchedProfit, // Прибуток зі зіставлених покупок-продажів
+            matchedRevenue, // Загальний дохід зі зіставлених продажів
+            matchedCost, // Загальна вартість зіставлених покупок
+            matchedCount, // Кількість зіставлених пар покупка-продаж
+            matchedProfitMargin: matchedRevenue > 0 ? (matchedProfit / matchedRevenue) * 100 : 0,
             topItems,
             dailyData: getDailyData(filtered)
         };

@@ -123,6 +123,16 @@ function Analytics() {
                     </div>
                 </div>
                 
+                <div className="stat-card profit" style={{ backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border-color)' }}>
+                    <h3>Прибуток зі купівлі-продажу</h3>
+                    <div className={`stat-value ${(stats.matchedProfit || 0) >= 0 ? 'positive' : 'negative'}`}>
+                        ${(stats.matchedProfit || 0).toFixed(2)}
+                    </div>
+                    <div className="stat-label">
+                        Маржа: {(stats.matchedProfitMargin || 0).toFixed(1)}% | {stats.matchedCount || 0} пар
+                    </div>
+                </div>
+                
                 <div className="stat-card sales">
                     <h3>{t('analytics.totalSales')}</h3>
                     <div className="stat-value">${stats.totalSales.toFixed(2)}</div>
