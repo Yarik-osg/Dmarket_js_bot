@@ -3,7 +3,7 @@ version: 2.1
 jobs:
   build-macos:
     macos:
-      xcode: "14.2.0"  # Версія Xcode для macOS
+      xcode: "latest"  # Використовуємо останню доступну версію
     steps:
       - checkout
       
