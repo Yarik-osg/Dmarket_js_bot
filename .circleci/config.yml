@@ -3,7 +3,7 @@ version: 2.1
 jobs:
   build-macos:
     macos:
-      xcode: "latest"  # Використовуємо останню доступну версію
+      xcode: 15.0.0
     steps:
       - checkout
       
