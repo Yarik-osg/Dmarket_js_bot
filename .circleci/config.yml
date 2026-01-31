@@ -1,0 +1,48 @@
+version: 2.1
+
+jobs:
+  build-macos:
+    macos:
+      xcode: "14.3.0"
+    steps:
+      - checkout
+      
+      - run:
+          name: Install Node.js
+          command: |
+            brew install node@18
+            echo 'export PATH="/opt/homebrew/opt/node@18/bin:$PATH"' >> ~/.zshrc
+            export PATH="/opt/homebrew/opt/node@18/bin:$PATH"
+            node --version
+            npm --version
+      
+      - restore_cache:
+          keys:
+            - v1-deps-{{ checksum "package-lock.json" }}
+      
+      - run:
+          name: Install dependencies
+          command: |
+            export PATH="/opt/homebrew/opt/node@18/bin:$PATH"
+            npm ci
+      
+      - save_cache:
+          paths:
+            - node_modules
+          key: v1-deps-{{ checksum "package-lock.json" }}
+      
+      - run:
+          name: Build application
+          command: |
+            export PATH="/opt/homebrew/opt/node@18/bin:$PATH"
+            npm run build
+            npm run build:mac
+      
+      - store_artifacts:
+          path: dist-electron
+
+workflows:
+  version: 2
+  build:
+    jobs:
+      - build-macos
