@@ -4,7 +4,9 @@ jobs:
   build-macos:
     macos:
       xcode: 14.3.0
-       resource_class: macos.x86.medium
+
+    resource_class: macos.x86.medium
+    
     steps:
       - checkout
       
