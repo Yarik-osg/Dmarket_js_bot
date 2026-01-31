@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext.jsx';
 import { useLogs } from '../contexts/LogsContext.jsx';
+import { showConfirmModal } from '../utils/modal.js';
 import '../styles/Settings.css';
 
 function Settings() {
@@ -97,29 +98,42 @@ function Settings() {
     };
 
     const handleLogout = async () => {
-        if (window.confirm('Ви впевнені, що хочете вийти? Вам потрібно буде ввести ключі знову для використання бота.')) {
-            await logout();
-            addLog({
-                type: 'info',
-                category: 'system',
-                message: 'Користувач вийшов з системи'
-            });
-            // Clear form
-            setPublicKey('');
-            setSecretKey('');
-            setError('');
-            setSuccess('');
-        }
+        showConfirmModal({
+            title: 'Підтвердження виходу',
+            message: 'Ви впевнені, що хочете вийти? Вам потрібно буде ввести ключі знову для використання бота.',
+            onConfirm: async () => {
+                await logout();
+                addLog({
+                    type: 'info',
+                    category: 'system',
+                    message: 'Користувач вийшов з системи'
+                });
+                // Clear form
+                setPublicKey('');
+                setSecretKey('');
+                setError('');
+                setSuccess('');
+            },
+            confirmText: 'Вийти',
+            cancelText: 'Скасувати',
+            confirmVariant: 'danger'
+        });
     };
 
     const handleClear = () => {
-        if (window.confirm('Ви впевнені, що хочете очистити поля? Поточні ключі залишаться збереженими.')) {
-            setPublicKey('');
-            setSecretKey('');
-            setError('');
-            setSuccess('');
-            setShowKeys(false);
-        }
+        showConfirmModal({
+            title: 'Підтвердження',
+            message: 'Ви впевнені, що хочете очистити поля? Поточні ключі залишаться збереженими.',
+            onConfirm: () => {
+                setPublicKey('');
+                setSecretKey('');
+                setError('');
+                setSuccess('');
+                setShowKeys(false);
+            },
+            confirmText: 'Очистити',
+            cancelText: 'Скасувати'
+        });
     };
 
     const handleShowKeys = () => {

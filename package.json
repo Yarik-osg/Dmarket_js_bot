@@ -25,6 +25,7 @@
     "@babel/core": "^7.26.0",
     "@babel/preset-env": "^7.26.0",
     "@babel/preset-react": "^7.26.0",
+    "@emotion/babel-plugin": "^11.13.5",
     "babel-loader": "^9.2.1",
     "cross-env": "^10.1.0",
     "css-loader": "^7.1.2",
@@ -38,9 +39,33 @@
     "webpack-dev-server": "^5.1.0"
   },
   "dependencies": {
+    "@emotion/react": "^11.14.0",
+    "@emotion/styled": "^11.14.1",
+    "@hookform/resolvers": "^5.2.2",
+    "@mantine/core": "^8.3.13",
+    "@mantine/dates": "^8.3.13",
+    "@mantine/dropzone": "^8.3.13",
+    "@mantine/form": "^8.3.13",
+    "@mantine/hooks": "^8.3.13",
+    "@mantine/notifications": "^8.3.13",
+    "@tabler/icons-react": "^3.36.1",
+    "@tanstack/react-table": "^8.21.3",
+    "ag-grid-community": "^35.0.0",
+    "ag-grid-react": "^35.0.0",
+    "axios": "^1.13.2",
+    "date-fns": "^4.1.0",
     "electron-store": "^10.0.0",
+    "mantine-datatable": "^8.3.13",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
-    "tweetnacl": "^1.0.3"
+    "react-error-boundary": "^6.0.1",
+    "react-hook-form": "^7.69.0",
+    "react-icons": "^5.5.0",
+    "react-is": "^19.2.3",
+    "react-modal": "^3.16.3",
+    "react-toastify": "^11.0.5",
+    "recharts": "^3.6.0",
+    "tweetnacl": "^1.0.3",
+    "zod": "^4.2.1"
   }
 }

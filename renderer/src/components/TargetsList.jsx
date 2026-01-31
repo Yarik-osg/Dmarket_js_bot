@@ -5,6 +5,19 @@ import { useAuth } from '../contexts/AuthContext.jsx';
 import { useLogs } from '../contexts/LogsContext.jsx';
 import { ApiService } from '../services/apiService.js';
 import TargetForm from './TargetForm.jsx';
+import { showConfirmModal, showAlertModal } from '../utils/modal.js';
+import { 
+    RiSearchLine, 
+    RiAddLine, 
+    RiDeleteBin6Line, 
+    RiRefreshLine,
+    RiPlayCircleLine,
+    RiPauseCircleLine,
+    RiPencilLine,
+    RiCheckLine,
+    RiTimerLine,
+    RiRestartLine
+} from 'react-icons/ri';
 import '../styles/TargetsList.css';
 
 function TargetsList({ isAutoUpdatingEnabled = false, onToggleAutoUpdate }) {
@@ -32,17 +45,70 @@ function TargetsList({ isAutoUpdatingEnabled = false, onToggleAutoUpdate }) {
     const [pendingMaxPrices, setPendingMaxPrices] = useState({}); // Store pending max prices before applying
     const [pendingAmounts, setPendingAmounts] = useState({}); // Store pending amounts before applying
     const [pendingNewTargetMaxPrice, setPendingNewTargetMaxPrice] = useState(null); // Store maxPrice for newly created target
+    const [resetStats, setResetStats] = useState(() => {
+        // Load reset stats from localStorage
+        try {
+            const saved = localStorage.getItem('targetPriceResetStats');
+            return saved ? JSON.parse(saved) : null;
+        } catch (err) {
+            console.error('Error loading reset stats:', err);
+            return null;
+        }
+    });
+    const [timeUntilReset, setTimeUntilReset] = useState('');
     const loadingPricesRef = useRef(false);
     const lastTargetsRef = useRef([]);
     const autoUpdateIntervalRef = useRef(null);
     const isAutoUpdatingRef = useRef(false);
     const targetsRef = useRef(targets);
     const maxPricesRef = useRef({}); // Keep maxPrices in ref to prevent loss during updates
+    const lastPriceResetTimeRef = useRef((() => {
+        // Load last reset time from localStorage
+        try {
+            const saved = localStorage.getItem('lastTargetPriceResetTime');
+            return saved ? parseInt(saved, 10) : 0;
+        } catch (err) {
+            console.error('Error loading lastPriceResetTime:', err);
+            return 0;
+        }
+    })());
 
     const apiService = useMemo(() => {
         return client ? new ApiService(client) : null;
     }, [client]);
     
+    // Update timer every second
+    useEffect(() => {
+        const updateTimer = () => {
+            const RESET_INTERVAL_MS = 3.5 * 60 * 60 * 1000; // 3.5 hours
+            const now = Date.now();
+            const lastResetTime = lastPriceResetTimeRef.current;
+            
+            if (lastResetTime === 0) {
+                setTimeUntilReset('Очікування першого циклу');
+                return;
+            }
+            
+            const timeSinceLastReset = now - lastResetTime;
+            const timeRemaining = RESET_INTERVAL_MS - timeSinceLastReset;
+            
+            if (timeRemaining <= 0) {
+                setTimeUntilReset('Готово до скидання');
+                return;
+            }
+            
+            const hours = Math.floor(timeRemaining / (60 * 60 * 1000));
+            const minutes = Math.floor((timeRemaining % (60 * 60 * 1000)) / (60 * 1000));
+            const seconds = Math.floor((timeRemaining % (60 * 1000)) / 1000);
+            
+            setTimeUntilReset(`${hours}г ${minutes}хв ${seconds}с`);
+        };
+        
+        updateTimer(); // Initial update
+        const interval = setInterval(updateTimer, 1000); // Update every second
+        
+        return () => clearInterval(interval);
+    }, []);
 
     useEffect(() => {
         // Load initial targets only once when component mounts and client is available
@@ -58,10 +124,12 @@ function TargetsList({ isAutoUpdatingEnabled = false, onToggleAutoUpdate }) {
             if (!apiService || targets.length === 0 || loadingPricesRef.current) return;
             
             // Check if targets actually changed
-            const targetsChanged = JSON.stringify(targets.map(t => t.targetId || t.itemId || t.instantTargetId)) !== 
-                                  JSON.stringify(lastTargetsRef.current.map(t => t.targetId || t.itemId || t.instantTargetId));
-            
-            if (!targetsChanged && lastTargetsRef.current.length > 0) return;
+            // const targetsChanged = JSON.stringify(targets.map(t => t.targetId || t.itemId || t.instantTargetId)) !== 
+            //                       JSON.stringify(lastTargetsRef.current.map(t => t.targetId || t.itemId || t.instantTargetId));
+            // console.log('targetsChanged', targetsChanged);
+            // console.log('lastTargetsRef.current', lastTargetsRef.current);
+            // console.log('targets', targets);
+            // if (!targetsChanged && lastTargetsRef.current.length > 0) return;
 
             loadingPricesRef.current = true;
             setLoadingMarketPrices(true);
@@ -119,6 +187,8 @@ function TargetsList({ isAutoUpdatingEnabled = false, onToggleAutoUpdate }) {
                                 .filter(price => price > 0 && !isNaN(price))
                                 .sort((a, b) => b - a); // Sort descending to get highest price
 
+                            console.log('title', title);
+                            console.log('targetPrices', targetPrices);
                             if (targetPrices.length > 0) {
                                 const bestPrice = targetPrices[0]; // Highest price (best buy order)
                                 // Format price: add dot after last 2 digits
@@ -201,6 +271,74 @@ function TargetsList({ isAutoUpdatingEnabled = false, onToggleAutoUpdate }) {
         };
 
         return floatRanges[floatPartValue] || floatPartValue;
+    };
+    
+    // Get float range data for progress bar
+    const getFloatRangeData = (floatPartValue) => {
+        if (!floatPartValue || floatPartValue === '' || floatPartValue === 'N/A') {
+            return null;
+        }
+        
+        // Parse the float range to get min/max values
+        const range = getFloatRange(floatPartValue);
+        if (range === 'Any' || range === floatPartValue) {
+            return null;
+        }
+        
+        const [min, max] = range.split('-').map(parseFloat);
+        
+        // Extract actual float value from floatPartValue (e.g., "FN-3" -> 0.03, "MW-2" -> 0.09)
+        let value = (min + max) / 2; // Default to middle of range
+        
+        // Try to extract exact value from the range
+        const parts = floatPartValue.split('-');
+        if (parts.length === 2) {
+            const suffix = parseInt(parts[1]);
+            const prefix = parts[0];
+            
+            // Calculate approximate value based on prefix and suffix
+            if (prefix === 'FN') {
+                value = 0.01 * suffix + 0.005;
+            } else if (prefix === 'MW') {
+                value = suffix < 4 ? 0.07 + 0.01 * suffix : 0.11 + (suffix - 4) * 0.01;
+            } else if (prefix === 'FT') {
+                value = suffix < 4 ? 0.15 + 0.03 * suffix : 0.27 + (suffix - 4) * 0.03;
+            } else if (prefix === 'WW') {
+                value = suffix < 4 ? 0.38 + 0.01 * suffix : 0.42 + (suffix - 4) * 0.01;
+            } else if (prefix === 'BS') {
+                if (suffix === 0) value = 0.475;
+                else if (suffix === 1) value = 0.565;
+                else if (suffix === 2) value = 0.695;
+                else if (suffix === 3) value = 0.78;
+                else value = 0.90;
+            }
+        }
+        
+        // Ensure value is within range
+        value = Math.max(min, Math.min(max, value));
+        
+        // Determine wear category and color
+        let category = '';
+        let color = '';
+        
+        if (max <= 0.07) {
+            category = 'Factory New';
+            color = '#10b981'; // green
+        } else if (max <= 0.15) {
+            category = 'Minimal Wear';
+            color = '#3b82f6'; // blue
+        } else if (max <= 0.38) {
+            category = 'Field-Tested';
+            color = '#f59e0b'; // yellow
+        } else if (max <= 0.45) {
+            category = 'Well-Worn';
+            color = '#ff9800'; // orange
+        } else {
+            category = 'Battle-Scarred';
+            color = '#ef4444'; // red
+        }
+        
+        return { min, max, value, category, color, range };
     };
 
     // Wrapper for loadTargets that saves maxPrices before loading
@@ -288,11 +426,127 @@ function TargetsList({ isAutoUpdatingEnabled = false, onToggleAutoUpdate }) {
         targetsRef.current = targets;
     }, [targets]);
 
+    // Reset all target prices to 0.10 (10 cents) for target reactivation
+    const resetAllTargetPrices = useCallback(async () => {
+        const currentTargets = targetsRef.current;
+        if (!apiService || currentTargets.length === 0) return;
+
+        console.log('=== RESETTING ALL TARGET PRICES TO 0.10 ===');
+        addLog({
+            type: 'info',
+            category: 'parsing',
+            message: 'Скидання цін всіх таргетів до 0.10 для актуалізації',
+            details: { targetsCount: currentTargets.length }
+        });
+
+        const resetPrice = '0.10'; // 10 cents in dollars
+        let successCount = 0;
+        let failCount = 0;
+
+        for (let i = 0; i < currentTargets.length; i++) {
+            const target = currentTargets[i];
+            try {
+                // Add delay between updates to avoid conflicts
+                if (i > 0) {
+                    await new Promise(resolve => setTimeout(resolve, 1000)); // 1 second delay
+                }
+
+                const targetId = target.targetId || target.itemId || target.instantTargetId;
+                const title = target.itemTitle || target.title || target.extra?.name || target.attributes?.title;
+                const gameId = target.gameId || 'a8db';
+                const floatPartValue = target.extra?.floatPartValue || target.attributes?.floatPartValue || null;
+                const ourAmount = target.amount || 1;
+
+                if (!title || !targetId) {
+                    console.warn(`Skipping target ${targetId}: missing title or targetId`);
+                    continue;
+                }
+
+                console.log(`Resetting price for ${title} (${targetId}) to ${resetPrice}`);
+                await updateTarget(targetId, { 
+                    price: { amount: resetPrice, currency: 'USD' }, 
+                    amount: ourAmount 
+                }, gameId, title, floatPartValue, true);
+                
+                successCount++;
+            } catch (err) {
+                console.error(`Failed to reset price for target ${target.targetId || target.itemId}:`, err);
+                failCount++;
+            }
+        }
+
+        // Save reset time to localStorage
+        const now = Date.now();
+        lastPriceResetTimeRef.current = now;
+        
+        // Save reset stats
+        const stats = {
+            lastResetTime: now,
+            successCount,
+            failCount,
+            totalCount: currentTargets.length
+        };
+        setResetStats(stats);
+        
+        try {
+            localStorage.setItem('lastTargetPriceResetTime', now.toString());
+            localStorage.setItem('targetPriceResetStats', JSON.stringify(stats));
+        } catch (err) {
+            console.error('Error saving reset data:', err);
+        }
+
+        addLog({
+            type: successCount > 0 ? 'success' : 'warning',
+            category: 'parsing',
+            message: `Скидання цін завершено: ${successCount} успішно, ${failCount} помилок`,
+            details: { successCount, failCount, targetsCount: currentTargets.length }
+        });
+
+        console.log(`Price reset completed: ${successCount} success, ${failCount} failed`);
+    }, [apiService, updateTarget, addLog]);
+    
+    // Manual reset with confirmation
+    const handleManualReset = useCallback(() => {
+        showConfirmModal({
+            title: 'Скинути всі ціни',
+            message: 'Ви впевнені, що хочете скинути ціни всіх таргетів до $0.10? Це може зайняти деякий час.',
+            confirmText: 'Скинути',
+            cancelText: 'Скасувати',
+            confirmVariant: 'primary',
+            onConfirm: async () => {
+                await resetAllTargetPrices();
+                await loadTargetsWithMaxPrices(); // Reload to show updated prices
+            }
+        });
+    }, [resetAllTargetPrices, loadTargetsWithMaxPrices]);
+
     // Auto-update target prices: find highest price from other targets and set 1 cent higher (but not more than maxPrice)
     const autoUpdateTargetPrices = useCallback(async () => {
         const currentTargets = targetsRef.current;
         const currentMaxPrices = maxPricesRef.current || maxPrices;
         if (!apiService || currentTargets.length === 0 || updating || isAutoUpdatingRef.current) return;
+
+        // Check if it's time to reset prices (every 3.5 hours = 12600000 ms)
+        const RESET_INTERVAL_MS = 3.5 * 60 * 60 * 1000; // 3.5 hours in milliseconds
+        const now = Date.now();
+        const lastResetTime = lastPriceResetTimeRef.current;
+        const timeSinceLastReset = now - lastResetTime;
+
+        // Only reset if lastResetTime exists (not first run) and enough time has passed
+        if (lastResetTime > 0 && timeSinceLastReset >= RESET_INTERVAL_MS) {
+            console.log(`Time to reset prices: ${timeSinceLastReset}ms since last reset (${RESET_INTERVAL_MS}ms interval)`);
+            await resetAllTargetPrices();
+            // After reset, continue with normal price update logic
+        } else if (lastResetTime === 0) {
+            // First run - initialize reset time but don't reset yet
+            console.log('First run detected, initializing reset timer');
+            lastPriceResetTimeRef.current = now;
+            try {
+                localStorage.setItem('lastTargetPriceResetTime', now.toString());
+            } catch (err) {
+                console.error('Error saving lastPriceResetTime:', err);
+            }
+        }
 
         isAutoUpdatingRef.current = true;
         setUpdating(true);
@@ -372,13 +626,10 @@ function TargetsList({ isAutoUpdatingEnabled = false, onToggleAutoUpdate }) {
 
                             // Check phase match (if our target has phase, order must have same phase)
                             const phaseMatches = !targetPhase || (orderPhase === targetPhase);
-                            console.log('orderPhase', orderPhase);
-                            console.log('targetPhase', targetPhase);
+
                             // Check paintSeed match (if our target has paintSeed and it's not 0, order must have same paintSeed)
                             const paintSeedMatches = !targetPaintSeed || targetPaintSeed === 0 || 
-                                                    (orderPaintSeed && parseInt(orderPaintSeed) === parseInt(targetPaintSeed));
-                            console.log('orderPaintSeed', orderPaintSeed);
-                            console.log('targetPaintSeed', targetPaintSeed);  
+                                                    (orderPaintSeed && parseInt(orderPaintSeed) === parseInt(targetPaintSeed));  
                             return floatMatches && phaseMatches && paintSeedMatches;
                         });
 
@@ -564,7 +815,7 @@ function TargetsList({ isAutoUpdatingEnabled = false, onToggleAutoUpdate }) {
             setUpdating(false);
             isAutoUpdatingRef.current = false;
         }
-    }, [apiService, updateTarget, loadTargets, updating]); // Remove maxPrices from dependencies, use maxPricesRef instead
+    }, [apiService, updateTarget, loadTargets, updating, resetAllTargetPrices]); // Remove maxPrices from dependencies, use maxPricesRef instead
 
     // Update maxPricesRef when maxPrices change
     useEffect(() => {
@@ -637,10 +888,10 @@ function TargetsList({ isAutoUpdatingEnabled = false, onToggleAutoUpdate }) {
         // Start interval for auto-update
         console.log('Starting auto-update interval');
         addLog({
-            type: 'success',
+            type: 'info',
             category: 'parsing',
             message: 'Парсинг таргетів запущено',
-            details: { targetsCount: targets.length, interval: '20 секунд' }
+            details: { targetsCount: targets.length, interval: '1 хвилина' }
         });
         autoUpdateIntervalRef.current = setInterval(() => {
             if (!isAutoUpdatingRef.current) {
@@ -659,30 +910,69 @@ function TargetsList({ isAutoUpdatingEnabled = false, onToggleAutoUpdate }) {
 
     const handleDelete = async (targetId) => {
         if (!targetId) {
-            alert('Неможливо видалити: ID не знайдено');
+            showAlertModal({
+                title: 'Помилка',
+                message: 'Неможливо видалити: ID не знайдено'
+            });
             return;
         }
         const target = targets.find(t => (t.targetId || t.itemId || t.instantTargetId) === targetId);
         const title = target?.itemTitle || target?.title || target?.extra?.name || 'Невідомий таргет';
-        if (window.confirm(t('targets.deleteConfirm'))) {
-            try {
-                await deleteTarget(targetId);
-                addLog({
-                    type: 'success',
-                    category: 'target',
-                    message: `Таргет видалено: ${title}`,
-                    details: { targetId, title }
-                });
-            } catch (err) {
-                addLog({
-                    type: 'error',
-                    category: 'target',
-                    message: `Помилка видалення таргета: ${title}`,
-                    details: { targetId, title, error: err.message }
-                });
-                alert(t('targets.deleteError') + ': ' + err.message);
-            }
-        }
+        const price = target?.price?.USD || 'N/A';
+        const formattedPrice = typeof price === 'string' && price !== 'N/A' 
+            ? (price.length >= 2 ? price.slice(0, -2) + '.' + price.slice(-2) : '0.' + price.padStart(2, '0'))
+            : price;
+        const status = target?.status || 'N/A';
+        const amount = target?.amount || 1;
+        const floatPartValue = target?.extra?.floatPartValue || target?.attributes?.floatPartValue || null;
+        
+        const targetInfo = (
+            <div style={{ marginBottom: '16px' }}>
+                <div style={{ marginBottom: '12px', padding: '12px', backgroundColor: 'var(--bg-tertiary, #333)', borderRadius: '8px', border: '1px solid var(--border-color, #444)' }}>
+                    <div style={{ fontWeight: '600', marginBottom: '8px', color: 'var(--text-primary, #fff)' }}>Таргет:</div>
+                    <div style={{ marginBottom: '6px', color: 'var(--text-primary, #fff)' }}><strong>{title}</strong></div>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '12px', fontSize: '13px', color: 'var(--text-secondary, #aaa)' }}>
+                        <span>Статус: <strong style={{ color: status === 'active' ? 'var(--success-color)' : 'var(--text-secondary)' }}>{status}</strong></span>
+                        <span>Ціна: <strong style={{ color: 'var(--text-primary)' }}>${formattedPrice}</strong></span>
+                        <span>Кількість: <strong style={{ color: 'var(--text-primary)' }}>{amount}</strong></span>
+                        {floatPartValue && <span>Float: <strong style={{ color: 'var(--text-primary)' }}>{floatPartValue}</strong></span>}
+                    </div>
+                </div>
+                <div style={{ color: 'var(--text-secondary, #aaa)', fontSize: '14px' }}>
+                    {t('targets.deleteConfirm')}
+                </div>
+            </div>
+        );
+        
+        showConfirmModal({
+            title: 'Підтвердження видалення',
+            message: targetInfo,
+            onConfirm: async () => {
+                try {
+                    await deleteTarget(targetId);
+                    addLog({
+                        type: 'success',
+                        category: 'target',
+                        message: `Таргет видалено: ${title}`,
+                        details: { targetId, title }
+                    });
+                } catch (err) {
+                    addLog({
+                        type: 'error',
+                        category: 'target',
+                        message: `Помилка видалення таргета: ${title}`,
+                        details: { targetId, title, error: err.message }
+                    });
+                    showAlertModal({
+                        title: 'Помилка',
+                        message: t('targets.deleteError') + ': ' + err.message
+                    });
+                }
+            },
+            confirmText: 'Видалити',
+            cancelText: 'Скасувати',
+            confirmVariant: 'danger'
+        });
     };
 
     const handleActivate = async (targetId) => {
@@ -707,7 +997,10 @@ function TargetsList({ isAutoUpdatingEnabled = false, onToggleAutoUpdate }) {
                 message: `Помилка активації таргета: ${title}`,
                 details: { targetId, title, error: err.message }
             });
-            alert('Помилка активації таргета: ' + (err.message || 'Невідома помилка'));
+            showAlertModal({
+                title: 'Помилка',
+                message: 'Помилка активації таргета: ' + (err.message || 'Невідома помилка')
+            });
         } finally {
             setUpdating(false);
         }
@@ -735,7 +1028,10 @@ function TargetsList({ isAutoUpdatingEnabled = false, onToggleAutoUpdate }) {
                 message: `Помилка деактивації таргета: ${title}`,
                 details: { targetId, title, error: err.message }
             });
-            alert('Помилка деактивації таргета: ' + (err.message || 'Невідома помилка'));
+            showAlertModal({
+                title: 'Помилка',
+                message: 'Помилка деактивації таргета: ' + (err.message || 'Невідома помилка')
+            });
         } finally {
             setUpdating(false);
         }
@@ -972,6 +1268,53 @@ function TargetsList({ isAutoUpdatingEnabled = false, onToggleAutoUpdate }) {
                 </div>
             </div>
 
+            {/* Price Reset Info Panel */}
+            <div className="price-reset-panel">
+                <div className="reset-timer">
+                    <RiTimerLine className="reset-icon" />
+                    <div className="reset-timer-info">
+                        <span className="reset-timer-label">Наступне скидання:</span>
+                        <span className="reset-timer-value">{timeUntilReset}</span>
+                    </div>
+                </div>
+                
+                {resetStats && (
+                    <div className="reset-stats">
+                        <div className="reset-stats-item">
+                            <span className="reset-stats-label">Останнє скидання:</span>
+                            <span className="reset-stats-value">
+                                {new Date(resetStats.lastResetTime).toLocaleString('uk-UA', {
+                                    day: '2-digit',
+                                    month: '2-digit',
+                                    year: 'numeric',
+                                    hour: '2-digit',
+                                    minute: '2-digit'
+                                })}
+                            </span>
+                        </div>
+                        <div className="reset-stats-item">
+                            <span className="reset-stats-label">Результат:</span>
+                            <span className="reset-stats-value">
+                                {resetStats.successCount}/{resetStats.totalCount} таргетів
+                                {resetStats.failCount > 0 && (
+                                    <span className="reset-stats-errors"> ({resetStats.failCount} помилок)</span>
+                                )}
+                            </span>
+                        </div>
+                    </div>
+                )}
+                
+                <button 
+                    onClick={handleManualReset} 
+                    className="btn btn-reset" 
+                    disabled={updating || loading}
+                    title="Примусово скинути всі ціни до $0.10"
+                >
+                    <RiRestartLine />
+                    Скинути зараз
+                </button>
+            </div>
+
             {loading && <div className="loading">{t('targets.loading')}</div>}
             {error && <div className="error">{t('targets.error')}: {error}</div>}
             {authError && (
@@ -1046,8 +1389,46 @@ function TargetsList({ isAutoUpdatingEnabled = false, onToggleAutoUpdate }) {
                                                 </div>
                                             </div>
                                         </td>
-                                        <td>{formattedPrice}</td>
-                                        <td>{marketPrices[targetId] || (loadingMarketPrices ? '...' : 'N/A')}</td>
+                                        <td>
+                                            <span 
+                                                className="price-cell"
+                                                title={`Ваша ціна: $${formattedPrice}`}
+                                            >
+                                                ${formattedPrice}
+                                            </span>
+                                        </td>
+                                        <td>
+                                            {(() => {
+                                                const marketPrice = marketPrices[targetId];
+                                                const ourPrice = parseFloat(formattedPrice);
+                                                
+                                                if (loadingMarketPrices) return '...';
+                                                if (!marketPrice || marketPrice === 'N/A') return 'N/A';
+                                                
+                                                const marketPriceNum = parseFloat(marketPrice.replace('$', ''));
+                                                const diff = ourPrice - marketPriceNum;
+                                                const diffPercent = marketPriceNum > 0 ? ((diff / marketPriceNum) * 100).toFixed(1) : 0;
+                                                const isHigher = diff > 0;
+                                                
+                                                return (
+                                                    <span 
+                                                        className="price-cell"
+                                                        title={`Ринкова ціна: ${marketPrice}\nВаша ціна: $${formattedPrice}\nРізниця: ${isHigher ? '+' : ''}$${diff.toFixed(2)} (${isHigher ? '+' : ''}${diffPercent}%)`}
+                                                        style={{
+                                                            color: isHigher ? '#ef4444' : '#10b981',
+                                                            cursor: 'help'
+                                                        }}
+                                                    >
+                                                        {marketPrice}
+                                                        {Math.abs(diff) > 0.01 && (
+                                                            <span style={{ fontSize: '10px', marginLeft: '4px' }}>
+                                                                ({isHigher ? '+' : ''}{diffPercent}%)
+                                                            </span>
+                                                        )}
+                                                    </span>
+                                                );
+                                            })()}
+                                        </td>
                                         <td>
                                             <div style={{ display: 'flex', gap: '5px', alignItems: 'center' }}>
                                                 <input
@@ -1074,7 +1455,7 @@ function TargetsList({ isAutoUpdatingEnabled = false, onToggleAutoUpdate }) {
                                                         title="Застосувати максимальну ціну"
                                                         disabled={updating}
                                                     >
-                                                        ✓
+                                                        <RiCheckLine />
                                                     </button>
                                                 )}
                                             </div>
@@ -1127,7 +1508,7 @@ function TargetsList({ isAutoUpdatingEnabled = false, onToggleAutoUpdate }) {
                                                         title="Деактивувати таргет"
                                                         disabled={updating}
                                                     >
-                                                        ⏸
+                                                        <RiPauseCircleLine />
                                                     </button>
                                                 ) : (
                                                     <button 
@@ -1136,10 +1517,12 @@ function TargetsList({ isAutoUpdatingEnabled = false, onToggleAutoUpdate }) {
                                                         title="Активувати таргет"
                                                         disabled={updating}
                                                     >
-                                                        ▶
+                                                        <RiPlayCircleLine />
                                                     </button>
                                                 )}
-                                                <button onClick={() => handleDelete(targetId)} className="btn-icon" title="Видалити">🗑</button>
+                                                <button onClick={() => handleDelete(targetId)} className="btn-icon btn-icon-danger" title="Видалити">
+                                                    <RiDeleteBin6Line />
+                                                </button>
                                             </div>
                                         </td>
                                     </tr>

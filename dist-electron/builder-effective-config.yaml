@@ -1,0 +1,43 @@
+directories:
+  output: dist-electron
+  buildResources: build
+appId: com.dmarket.bot
+productName: DMarket Bot
+files:
+  - filter:
+      - main/**
+      - renderer/dist/**
+      - package.json
+      - shared/**
+extraMetadata:
+  main: main/main.js
+nsis:
+  oneClick: false
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: true
+  createStartMenuShortcut: true
+win:
+  target:
+    - target: nsis
+      arch:
+        - x64
+mac:
+  target:
+    - target: dmg
+      arch:
+        - x64
+        - arm64
+  category: public.app-category.utilities
+  minimumSystemVersion: '10.13'
+  hardenedRuntime: false
+  gatekeeperAssess: false
+  identity: null
+  entitlements: null
+  entitlementsInherit: null
+  extendInfo:
+    LSMinimumSystemVersion: '10.13'
+    NSHighResolutionCapable: true
+linux:
+  target: AppImage
+publish: null
+electronVersion: 33.4.11

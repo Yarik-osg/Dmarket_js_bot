@@ -32,9 +32,9 @@ function App() {
                 <NotificationProvider>
                     <NotificationContextExposer />
                     <AnalyticsProvider>
-                        <LogsProvider>
-                            <MainLayout />
-                        </LogsProvider>
+                <LogsProvider>
+                    <MainLayout />
+                </LogsProvider>
                     </AnalyticsProvider>
                 </NotificationProvider>
             </AuthProvider>

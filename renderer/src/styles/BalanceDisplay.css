@@ -1,87 +1,146 @@
 .balance-display {
-    padding: 15px;
-    background-color: #1e1e1e;
-    border-top: 1px solid #444;
+    padding: 20px 18px;
+    background: rgba(255, 255, 255, 0.03);
+    backdrop-filter: blur(15px);
+    -webkit-backdrop-filter: blur(15px);
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
     margin-top: auto;
+    position: relative;
+    overflow: hidden;
+}
+
+.balance-display::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 2px;
+    background: linear-gradient(90deg, var(--accent-color), var(--info-color), var(--accent-color));
+    background-size: 200% 100%;
+    animation: gradient-shift 3s ease infinite;
+}
+
+@keyframes gradient-shift {
+    0%, 100% {
+        background-position: 0% 50%;
+    }
+    50% {
+        background-position: 100% 50%;
+    }
+}
+
+@keyframes spin {
+    from {
+        transform: rotate(0deg);
+    }
+    to {
+        transform: rotate(360deg);
+    }
 }
 
 .balance-header {
-    font-size: 14px;
-    font-weight: 600;
-    color: #ffffff;
-    margin-bottom: 12px;
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin-bottom: 14px;
     display: flex;
     justify-content: space-between;
     align-items: center;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
 }
 
 .balance-refresh-btn {
-    background: transparent;
+    position: relative;
+    background: linear-gradient(135deg, var(--accent-color), var(--info-color));
     border: none;
-    color: #ffffff;
+    color: white;
     cursor: pointer;
-    font-size: 16px;
-    padding: 4px 8px;
-    border-radius: 4px;
-    transition: background-color 0.2s;
+    font-size: 18px;
+    padding: 6px;
+    border-radius: var(--radius-md);
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 34px;
+    height: 34px;
+    box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
 }
 
 .balance-refresh-btn:hover:not(:disabled) {
-    background-color: #333;
+    background: linear-gradient(135deg, var(--info-color), var(--accent-color));
+    transform: rotate(180deg) scale(1.1);
+    box-shadow: 0 6px 20px rgba(59, 130, 246, 0.4);
 }
 
 .balance-refresh-btn:disabled {
     opacity: 0.5;
     cursor: not-allowed;
+    animation: spin 1s linear infinite;
 }
 
 .balance-item {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 6px 0;
-    font-size: 12px;
+    padding: 8px 0;
+    font-size: 13px;
 }
 
 .balance-item.total {
-    margin-top: 8px;
-    padding-top: 8px;
-    border-top: 1px solid #444;
-    font-weight: 600;
+    margin-top: 10px;
+    padding-top: 10px;
+    border-top: 2px solid var(--border-color);
+    font-weight: 700;
 }
 
 .balance-label {
-    color: #aaaaaa;
-}
-
-.balance-value {
-    color: #ffffff;
+    color: var(--text-secondary);
     font-weight: 500;
 }
 
+.balance-value {
+    font-weight: 800;
+    font-size: 14px;
+    background: linear-gradient(135deg, var(--text-primary), var(--text-secondary));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
 .balance-value.available {
-    color: #4caf50;
+    background: linear-gradient(135deg, #10b981, #059669);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
 }
 
 .balance-value.frozen {
-    color: #ff9800;
+    background: linear-gradient(135deg, #f59e0b, #d97706);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
 }
 
 .balance-value.total {
-    color: #2196f3;
-    font-size: 13px;
+    background: linear-gradient(135deg, var(--info-color), var(--accent-color));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    font-size: 16px;
 }
 
 .balance-loading,
 .balance-error {
     text-align: center;
-    color: #888;
+    color: var(--text-tertiary);
     font-size: 12px;
-    padding: 10px 0;
+    padding: 12px 0;
+    font-weight: 500;
 }
 
 .balance-error {
-    color: #f44336;
+    color: var(--error-color);
 }
-
-

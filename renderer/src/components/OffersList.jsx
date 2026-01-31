@@ -6,6 +6,15 @@ import { useAnalytics } from '../contexts/AnalyticsContext.jsx';
 import { useNotifications } from '../contexts/NotificationContext.jsx';
 import { ApiService } from '../services/apiService.js';
 import OfferForm from './OfferForm.jsx';
+import { showConfirmModal, showAlertModal } from '../utils/modal.js';
+import { 
+    RiSearchLine, 
+    RiRefreshLine, 
+    RiDeleteBin6Line,
+    RiAddLine,
+    RiShoppingBag3Line,
+    RiCheckLine
+} from 'react-icons/ri';
 import '../styles/OffersList.css';
 
 function OffersList({ isAutoUpdatingEnabled = false, onToggleAutoUpdate }) {
@@ -55,6 +64,51 @@ function OffersList({ isAutoUpdatingEnabled = false, onToggleAutoUpdate }) {
     const apiService = useMemo(() => {
         return client ? new ApiService(client) : null;
     }, [client]);
+
+    // Get float range data for progress bar
+    const getFloatRangeData = (floatValue) => {
+        if (!floatValue || floatValue === 'N/A') {
+            return null;
+        }
+        
+        const value = parseFloat(floatValue);
+        if (isNaN(value)) return null;
+        
+        // Determine wear category, color, and range based on float value
+        let category = '';
+        let color = '';
+        let min = 0;
+        let max = 1;
+        
+        if (value < 0.07) {
+            category = 'Factory New';
+            color = '#10b981';
+            min = 0;
+            max = 0.07;
+        } else if (value < 0.15) {
+            category = 'Minimal Wear';
+            color = '#3b82f6';
+            min = 0.07;
+            max = 0.15;
+        } else if (value < 0.38) {
+            category = 'Field-Tested';
+            color = '#f59e0b';
+            min = 0.15;
+            max = 0.38;
+        } else if (value < 0.45) {
+            category = 'Well-Worn';
+            color = '#ff9800';
+            min = 0.38;
+            max = 0.45;
+        } else {
+            category = 'Battle-Scarred';
+            color = '#ef4444';
+            min = 0.45;
+            max = 1.0;
+        }
+        
+        return { min, max, value, category, color };
+    };
 
 
     const loadOffers = useCallback(async () => {
@@ -890,36 +944,72 @@ function OffersList({ isAutoUpdatingEnabled = false, onToggleAutoUpdate }) {
     const handleDelete = async (offer) => {
         const offerId = offer.extra?.offerId || offer.itemId || offer.offerId || offer.instantOfferId;
         const title = offer.title || 'Невідомий офер';
+        const price = offer.price?.USD || 'N/A';
+        const formattedPrice = typeof price === 'string' && price !== 'N/A' 
+            ? (price.length >= 2 ? price.slice(0, -2) + '.' + price.slice(-2) : '0.' + price.padStart(2, '0'))
+            : price;
+        const floatValue = offer.extra?.floatValue ? parseFloat(offer.extra.floatValue).toFixed(5) : null;
+        
         if (!offerId) {
-            alert('Неможливо видалити: ID не знайдено');
+            showAlertModal({
+                title: 'Помилка',
+                message: 'Неможливо видалити: ID не знайдено'
+            });
             return;
         }
-        if (window.confirm('Ви впевнені, що хочете видалити цей офер?')) {
-            try {
-                setLoading(true);
-                await apiService.deleteOffer(offer);
-                addLog({
-                    type: 'success',
-                    category: 'offer',
-                    message: `Офер видалено: ${title}`,
-                    details: { offerId, title }
-                });
-                // Wait a bit before reloading to ensure API has processed the deletion
-                await new Promise(resolve => setTimeout(resolve, 1000));
-                await loadOffers();
-            } catch (err) {
-                addLog({
-                    type: 'error',
-                    category: 'offer',
-                    message: `Помилка видалення офера: ${title}`,
-                    details: { offerId, title, error: err.message }
-                });
-                setError('Помилка видалення офера: ' + err.message);
-                console.error('Error deleting offer:', err);
-            } finally {
-                setLoading(false);
-            }
-        }
+        
+        const offerInfo = (
+            <div style={{ marginBottom: '16px' }}>
+                <div style={{ marginBottom: '12px', padding: '12px', backgroundColor: 'var(--bg-tertiary, #333)', borderRadius: '8px', border: '1px solid var(--border-color, #444)' }}>
+                    <div style={{ fontWeight: '600', marginBottom: '8px', color: 'var(--text-primary, #fff)' }}>Офер:</div>
+                    <div style={{ marginBottom: '6px', color: 'var(--text-primary, #fff)' }}><strong>{title}</strong></div>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '12px', fontSize: '13px', color: 'var(--text-secondary, #aaa)' }}>
+                        <span>Ціна: <strong style={{ color: 'var(--text-primary)' }}>${formattedPrice}</strong></span>
+                        {floatValue && <span>Float: <strong style={{ color: 'var(--text-primary)' }}>{floatValue}</strong></span>}
+                    </div>
+                </div>
+                <div style={{ color: 'var(--text-secondary, #aaa)', fontSize: '14px' }}>
+                    Ця дія незворотна. Видалений офер не можна буде відновити.
+                </div>
+            </div>
+        );
+        
+        showConfirmModal({
+            title: 'Підтвердження видалення',
+            message: offerInfo,
+            onConfirm: async () => {
+                try {
+                    setLoading(true);
+                    await apiService.deleteOffer(offer);
+                    addLog({
+                        type: 'success',
+                        category: 'offer',
+                        message: `Офер видалено: ${title}`,
+                        details: { offerId, title }
+                    });
+                    // Wait a bit before reloading to ensure API has processed the deletion
+                    await new Promise(resolve => setTimeout(resolve, 1000));
+                    await loadOffers();
+                } catch (err) {
+                    addLog({
+                        type: 'error',
+                        category: 'offer',
+                        message: `Помилка видалення офера: ${title}`,
+                        details: { offerId, title, error: err.message }
+                    });
+                    showAlertModal({
+                        title: 'Помилка',
+                        message: 'Помилка видалення офера: ' + err.message
+                    });
+                    console.error('Error deleting offer:', err);
+                } finally {
+                    setLoading(false);
+                }
+            },
+            confirmText: 'Видалити',
+            cancelText: 'Скасувати',
+            confirmVariant: 'danger'
+        });
     };
 
 
@@ -1040,12 +1130,40 @@ function OffersList({ isAutoUpdatingEnabled = false, onToggleAutoUpdate }) {
                                                         title="Застосувати мінімальну ціну"
                                                         disabled={loading}
                                                     >
-                                                        ✓
+                                                        <RiCheckLine />
                                                     </button>
                                                 )}
                                             </div>
                                         </td>
-                                        <td>{floatValue}</td>
+                                        <td>
+                                            {(() => {
+                                                const floatData = getFloatRangeData(floatValue);
+                                                return floatData ? (
+                                                    <div 
+                                                        className="float-progress-container"
+                                                        title={`Float: ${floatValue} - Range: ${floatData.min.toFixed(2)}-${floatData.max.toFixed(2)} (${floatData.category})`}
+                                                    >
+                                                        <div className="float-progress-labels">
+                                                            <span className="float-min">{floatData.min.toFixed(2)}</span>
+                                                            <span className="float-value">{floatValue}</span>
+                                                            <span className="float-max">{floatData.max.toFixed(2)}</span>
+                                                        </div>
+                                                        <div className="float-progress-bar">
+                                                            <div 
+                                                                className="float-progress-fill"
+                                                                style={{
+                                                                    width: `${((floatData.value - floatData.min) / (floatData.max - floatData.min)) * 100}%`,
+                                                                    background: `linear-gradient(90deg, ${floatData.color}, ${floatData.color}dd)`
+                                                                }}
+                                                            />
+                                                        </div>
+                                                        <span className="float-category">{floatData.category}</span>
+                                                    </div>
+                                                ) : (
+                                                    floatValue
+                                                );
+                                            })()}
+                                        </td>
                                         <td>
                                             <div className="offer-actions">
                                                 <label 
@@ -1067,7 +1185,7 @@ function OffersList({ isAutoUpdatingEnabled = false, onToggleAutoUpdate }) {
                                                         onClick={(e) => e.stopPropagation()}
                                                     />
                                                     <span className="skip-checkbox-custom">
-                                                        {skipForParsing[itemId] ? '✓' : ''}
+                                                        {skipForParsing[itemId] ? <RiCheckLine /> : ''}
                                                     </span>
                                                 </label>
                                                 <button 

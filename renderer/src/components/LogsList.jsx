@@ -1,5 +1,12 @@
 import React, { useState, useMemo } from 'react';
 import { useLogs } from '../contexts/LogsContext.jsx';
+import { 
+    RiCheckboxCircleLine, 
+    RiCloseCircleLine, 
+    RiAlertLine, 
+    RiInformationLine,
+    RiFileTextLine 
+} from 'react-icons/ri';
 import '../styles/LogsList.css';
 
 function LogsList() {
@@ -32,11 +39,11 @@ function LogsList() {
 
     const getTypeIcon = (type) => {
         switch (type) {
-            case 'success': return '✅';
-            case 'error': return '❌';
-            case 'warning': return '⚠️';
-            case 'info': return 'ℹ️';
-            default: return '📝';
+            case 'success': return <RiCheckboxCircleLine />;
+            case 'error': return <RiCloseCircleLine />;
+            case 'warning': return <RiAlertLine />;
+            case 'info': return <RiInformationLine />;
+            default: return <RiFileTextLine />;
         }
     };
 

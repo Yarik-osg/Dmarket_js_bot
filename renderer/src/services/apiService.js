@@ -141,8 +141,22 @@ class ApiService {
     // Exchange API - Market Items
     async getMarketItems(params = {}) {
         const path = '/exchange/v1/offers-by-title';
-        https://api.dmarket.com/exchange/v1/offers-by-title
+        // https://api.dmarket.com/exchange/v1/offers-by-title
         return await this.client.call('GET', path, params);
+    }
+
+    async getAllMarketItems(params = {}) {
+        const path = '/exchange/v1/market/items';
+        // https://api.dmarket.com/exchange/v1/market/items
+        // Default parameters
+        const defaultParams = {
+            gameId: 'a8db',
+            currency: 'USD',
+            limit: 100,
+            offset: 0
+        };
+        const finalParams = { ...defaultParams, ...params };
+        return await this.client.call('GET', path, finalParams);
     }
 
     // Trade Aggregator API

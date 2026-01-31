@@ -1,0 +1,1296 @@
+.liquidity-analyzer-container {
+    padding: 24px;
+    max-width: 100%;
+    margin: 0;
+    width: 100%;
+}
+
+.liquidity-header {
+    margin-bottom: 32px;
+}
+
+.header-title-group {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    justify-content: center;
+    margin-bottom: 8px;
+}
+
+.header-info-icon {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: var(--info-color);
+    color: white;
+    cursor: pointer;
+    transition: all 0.2s;
+    flex-shrink: 0;
+    z-index: 1;
+}
+
+.header-info-icon:hover {
+    background: var(--info-light);
+    color: var(--info-color);
+    cursor: pointer;
+}
+
+.header-info-icon svg {
+    font-size: 20px;
+}
+
+.header-tooltip {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    padding: 24px;
+    background: var(--bg-primary);
+    border: 2px solid var(--info-color);
+    border-radius: 12px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+    width: 90%;
+    max-width: 600px;
+    max-height: 80vh;
+    overflow-y: auto;
+    z-index: 10000;
+    animation: tooltipFadeIn 0.2s ease;
+    margin: 0 auto;
+}
+
+/* Видалено стрілку для fixed tooltip */
+.header-tooltip::before {
+    display: none;
+}
+
+/* Backdrop для tooltips */
+.tooltip-backdrop {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.6);
+    z-index: 9999;
+    animation: backdropFadeIn 0.2s ease;
+    cursor: pointer;
+}
+
+.header-tooltip::after,
+.liquidity-tooltip::after {
+    display: none;
+}
+
+@keyframes backdropFadeIn {
+    from {
+        opacity: 0;
+    }
+    to {
+        opacity: 1;
+    }
+}
+
+.header-tooltip ul {
+    list-style: none;
+    padding-left: 0;
+    margin: 8px 0 0 0;
+}
+
+.header-tooltip li {
+    padding: 4px 0;
+    font-size: 13px;
+}
+
+.liquidity-title {
+    font-size: 32px;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin: 0;
+}
+
+.liquidity-subtitle {
+    font-size: 16px;
+    color: var(--text-secondary);
+    margin: 0;
+    text-align: center;
+}
+
+.liquidity-controls {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    margin-bottom: 32px;
+    padding: 24px;
+    background: var(--bg-secondary);
+    border-radius: 12px;
+    border: 1px solid var(--border-color);
+}
+
+.control-row {
+    display: flex;
+    gap: 16px;
+    align-items: flex-start;
+    flex-wrap: wrap;
+}
+
+.control-row:first-child {
+    padding-bottom: 12px;
+    border-bottom: 1px solid var(--border-color);
+    margin-bottom: 8px;
+}
+
+.quality-selector,
+.filter-group {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    flex: 1 1 180px;
+    min-width: 150px;
+}
+
+.filter-group-checkboxes {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    flex: 1 1 280px;
+    min-width: 250px;
+}
+
+.filter-group-title {
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin-bottom: 4px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    font-size: 12px;
+}
+
+.checkbox-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.checkbox-label {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 14px;
+    background: var(--bg-primary);
+    border: 2px solid var(--border-color);
+    border-radius: 10px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    font-size: 14px;
+    color: var(--text-primary);
+    position: relative;
+    overflow: hidden;
+}
+
+.checkbox-label::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 3px;
+    height: 100%;
+    background: var(--primary-color);
+    transform: scaleY(0);
+    transition: transform 0.2s ease;
+}
+
+.checkbox-label:hover:not(:has(input:disabled)) {
+    background: var(--bg-hover);
+    border-color: var(--primary-color);
+    transform: translateX(2px);
+    box-shadow: 0 2px 8px rgba(99, 102, 241, 0.15);
+}
+
+.checkbox-label:has(input:checked) {
+    background: linear-gradient(135deg, rgba(99, 102, 241, 0.08), rgba(99, 102, 241, 0.12));
+    border-color: var(--primary-color);
+    font-weight: 600;
+}
+
+.checkbox-label:has(input:checked)::before {
+    transform: scaleY(1);
+}
+
+/*Ховаємо стандартний чекбокс */
+.checkbox-label input[type="checkbox"] {
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    appearance: none;
+    width: 22px;
+    height: 22px;
+    border: 2px solid var(--border-color);
+    border-radius: 6px;
+    background: var(--bg-secondary);
+    cursor: pointer;
+    position: relative;
+    transition: all 0.2s ease;
+    flex-shrink: 0;
+}
+
+.checkbox-label input[type="checkbox"]:hover:not(:disabled) {
+    border-color: var(--primary-color);
+    transform: scale(1.05);
+}
+
+.checkbox-label input[type="checkbox"]:checked {
+    background: var(--primary-color);
+    border-color: var(--primary-color);
+}
+
+/* Галочка */
+.checkbox-label input[type="checkbox"]::after {
+    content: '';
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%) scale(0) rotate(45deg);
+    width: 5px;
+    height: 10px;
+    border: solid white;
+    border-width: 0 2px 2px 0;
+    opacity: 0;
+    transition: all 0.2s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+}
+
+.checkbox-label input[type="checkbox"]:checked::after {
+    opacity: 1;
+    transform: translate(-50%, -55%) scale(1) rotate(45deg);
+}
+
+.checkbox-label input[type="checkbox"]:disabled {
+    cursor: not-allowed;
+    opacity: 0.5;
+    background: var(--bg-tertiary);
+}
+
+.checkbox-label:has(input:disabled) {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.checkbox-label span {
+    flex: 1;
+    user-select: none;
+    line-height: 1.4;
+}
+
+.quality-selector label,
+.filter-group label {
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text-secondary);
+}
+
+.quality-select,
+.price-input {
+    padding: 10px 16px;
+    border-radius: 8px;
+    border: 1px solid var(--border-color);
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    font-size: 14px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.quality-select {
+    min-width: 200px;
+}
+
+.price-input {
+    width: 100%;
+}
+
+.quality-select:hover:not(:disabled),
+.price-input:hover:not(:disabled) {
+    border-color: var(--primary-color);
+}
+
+.quality-select:focus,
+.price-input:focus {
+    outline: none;
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+}
+
+.quality-select:disabled,
+.price-input:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+/* Поле пошуку */
+.filter-group.search-field {
+    flex: 1 1 300px;
+    min-width: 250px;
+}
+
+.search-input-wrapper {
+    position: relative;
+}
+
+.search-input {
+    width: 100%;
+    padding: 10px 16px;
+    border-radius: 8px;
+    border: 1px solid var(--border-color);
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    font-size: 14px;
+    transition: all 0.2s;
+}
+
+.search-input:hover:not(:disabled) {
+    border-color: var(--primary-color);
+}
+
+.search-input:focus {
+    outline: none;
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+}
+
+.search-input:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.search-loading {
+    position: absolute;
+    right: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 16px;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    from { transform: translateY(-50%) rotate(0deg); }
+    to { transform: translateY(-50%) rotate(360deg); }
+}
+
+.search-results-dropdown {
+    position: absolute;
+    top: calc(100% + 4px);
+    left: 0;
+    right: 0;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    max-height: 300px;
+    overflow-y: auto;
+    z-index: 1000;
+}
+
+.search-result-item {
+    padding: 12px 16px;
+    cursor: pointer;
+    transition: background 0.2s;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.search-result-item:last-child {
+    border-bottom: none;
+}
+
+.search-result-item:hover {
+    background: var(--bg-hover);
+}
+
+.result-title {
+    font-size: 14px;
+    color: var(--text-primary);
+    flex: 1;
+}
+
+.result-price {
+    font-size: 14px;
+    color: var(--primary-color);
+    font-weight: 600;
+}
+
+
+.slider-container {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.items-slider,
+.delay-slider {
+    flex: 1;
+    height: 6px;
+    border-radius: 3px;
+    background: var(--bg-primary);
+    outline: none;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    appearance: none;
+}
+
+.items-slider::-webkit-slider-thumb,
+.delay-slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background: var(--primary-color);
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.items-slider::-webkit-slider-thumb:hover,
+.delay-slider::-webkit-slider-thumb:hover {
+    transform: scale(1.2);
+    box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.2);
+}
+
+.items-slider::-moz-range-thumb,
+.delay-slider::-moz-range-thumb {
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background: var(--primary-color);
+    cursor: pointer;
+    border: none;
+    transition: all 0.2s;
+}
+
+.items-slider::-moz-range-thumb:hover,
+.delay-slider::-moz-range-thumb:hover {
+    transform: scale(1.2);
+    box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.2);
+}
+
+.slider-value {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--primary-color);
+    min-width: 50px;
+    text-align: right;
+}
+
+.analyze-btn {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 12px 32px;
+    font-size: 15px;
+    font-weight: 600;
+    min-width: 180px;
+    justify-content: center;
+    align-self: flex-end;
+}
+
+.analyze-btn svg {
+    font-size: 18px;
+}
+
+.analyze-btn .spinning {
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    from {
+        transform: rotate(0deg);
+    }
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+.progress-container {
+    margin-bottom: 24px;
+    padding: 20px;
+    background: var(--bg-secondary);
+    border-radius: 12px;
+    border: 1px solid var(--border-color);
+}
+
+.progress-bar {
+    width: 100%;
+    height: 8px;
+    background: var(--bg-primary);
+    border-radius: 4px;
+    overflow: hidden;
+    margin-bottom: 12px;
+}
+
+.progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--primary-color), var(--success-color));
+    border-radius: 4px;
+    transition: width 0.3s ease;
+}
+
+.progress-text {
+    text-align: center;
+    font-size: 14px;
+    color: var(--text-secondary);
+    font-weight: 500;
+}
+
+.progress-info {
+    text-align: center;
+    font-size: 12px;
+    color: var(--text-tertiary);
+    margin-top: 4px;
+}
+
+.info-message {
+    padding: 20px;
+    background: var(--info-bg);
+    border: 1px solid var(--info-border);
+    border-radius: 12px;
+    text-align: center;
+    color: var(--text-primary);
+    font-size: 14px;
+    margin-bottom: 24px;
+}
+
+.info-message strong {
+    display: block;
+    font-size: 16px;
+    margin-bottom: 12px;
+    color: var(--primary-color);
+}
+
+.active-filters {
+    display: flex;
+    gap: 8px;
+    justify-content: center;
+    align-items: center;
+    flex-wrap: wrap;
+    margin: 12px 0;
+    font-size: 13px;
+}
+
+.filter-tag {
+    padding: 4px 12px;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: 16px;
+    font-weight: 500;
+    color: var(--text-secondary);
+}
+
+.info-message p {
+    margin: 8px 0 0 0;
+    color: var(--text-secondary);
+}
+
+.liquidity-results {
+    margin-top: 32px;
+}
+
+.results-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 24px;
+    gap: 20px;
+    flex-wrap: wrap;
+}
+
+.results-title {
+    font-size: 24px;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin: 0;
+}
+
+.sort-controls {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.sort-controls label {
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--text-secondary);
+}
+
+.sort-select {
+    padding: 8px 16px;
+    border-radius: 8px;
+    border: 1px solid var(--border-color);
+    background: var(--bg-secondary);
+    color: var(--text-primary);
+    font-size: 14px;
+    min-width: 200px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.sort-select:hover {
+    border-color: var(--primary-color);
+}
+
+.sort-select:focus {
+    outline: none;
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+}
+
+.liquidity-info-icon {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    background: var(--primary-color);
+    color: white;
+    cursor: pointer;
+    transition: all 0.2s;
+    z-index: 1;
+}
+
+.liquidity-info-icon:hover {
+    background: var(--accent-hover);
+    cursor: pointer;
+}
+
+.liquidity-info-icon svg {
+    font-size: 18px;
+}
+
+.liquidity-tooltip {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    padding: 20px;
+    background: var(--bg-primary);
+    border: 2px solid var(--primary-color);
+    border-radius: 12px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+    width: 90%;
+    max-width: 500px;
+    max-height: 80vh;
+    overflow-y: auto;
+    z-index: 10000;
+    animation: tooltipFadeIn 0.2s ease;
+    margin: 0 auto;
+}
+
+@keyframes tooltipFadeIn {
+    from {
+        opacity: 0;
+        transform: translate(-50%, -48%);
+    }
+    to {
+        opacity: 1;
+        transform: translate(-50%, -50%);
+    }
+}
+
+/* Scrollbar для тултіпів */
+.header-tooltip::-webkit-scrollbar,
+.liquidity-tooltip::-webkit-scrollbar {
+    width: 8px;
+}
+
+.header-tooltip::-webkit-scrollbar-track,
+.liquidity-tooltip::-webkit-scrollbar-track {
+    background: var(--bg-secondary);
+    border-radius: 4px;
+}
+
+.header-tooltip::-webkit-scrollbar-thumb,
+.liquidity-tooltip::-webkit-scrollbar-thumb {
+    background: var(--primary-color);
+    border-radius: 4px;
+}
+
+.header-tooltip::-webkit-scrollbar-thumb:hover,
+.liquidity-tooltip::-webkit-scrollbar-thumb:hover {
+    background: var(--primary-light);
+}
+
+/* Видалено стрілку для fixed tooltip */
+.liquidity-tooltip::before {
+    display: none;
+}
+
+.tooltip-title {
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--primary-color);
+    margin-bottom: 12px;
+}
+
+.tooltip-formula {
+    padding: 12px;
+    background: var(--bg-secondary);
+    border-radius: 8px;
+    font-family: 'Courier New', monospace;
+    font-size: 13px;
+    color: var(--success-color);
+    margin-bottom: 12px;
+    line-height: 1.6;
+    border: 1px solid var(--border-color);
+}
+
+.tooltip-description {
+    font-size: 13px;
+    color: var(--text-secondary);
+}
+
+.tooltip-description p {
+    margin: 6px 0;
+    line-height: 1.5;
+}
+
+.tooltip-description strong {
+    color: var(--text-primary);
+    font-weight: 600;
+}
+
+.results-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(380px, 1fr));
+    gap: 24px;
+}
+
+.liquidity-card {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    padding: 16px;
+    transition: all 0.2s;
+    position: relative;
+    overflow: hidden;
+}
+
+.liquidity-card.hot-deal {
+    border-color: #ff6b35;
+    background: linear-gradient(135deg, var(--bg-secondary) 0%, rgba(255, 107, 53, 0.1) 100%);
+    box-shadow: 0 4px 20px rgba(255, 107, 53, 0.3);
+    animation: glow 2s ease-in-out infinite alternate;
+}
+
+@keyframes glow {
+    from {
+        box-shadow: 0 4px 20px rgba(255, 107, 53, 0.3);
+    }
+    to {
+        box-shadow: 0 8px 30px rgba(255, 107, 53, 0.5);
+    }
+}
+
+.hot-deal-badge {
+    position: absolute;
+    top: -2px;
+    right: -2px;
+    background: linear-gradient(135deg, #ff6b35, #ff4500);
+    color: white;
+    padding: 4px 12px;
+    border-radius: 0 10px 0 10px;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    box-shadow: 0 2px 8px rgba(255, 107, 53, 0.4);
+    animation: pulse 1.5s ease-in-out infinite;
+    z-index: 1;
+}
+
+.warning-badge {
+    margin-bottom: 12px;
+    background: linear-gradient(135deg, #ef4444, #dc2626);
+    color: white;
+    padding: 10px 14px;
+    border-radius: 8px;
+    font-size: 11px;
+    font-weight: 600;
+    box-shadow: 0 4px 12px rgba(239, 68, 68, 0.4);
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    border: 2px solid rgba(255, 255, 255, 0.2);
+    line-height: 1.4;
+}
+
+.warning-badge span {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+@keyframes pulse {
+    0%, 100% {
+        transform: scale(1);
+    }
+    50% {
+        transform: scale(1.05);
+    }
+}
+
+.liquidity-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+    border-color: var(--primary-color);
+}
+
+.card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+    gap: 8px;
+}
+
+.card-rank {
+    font-size: 20px;
+    font-weight: 700;
+    color: var(--primary-color);
+    padding: 4px 12px;
+    background: rgba(99, 102, 241, 0.1);
+    border-radius: 8px;
+}
+
+.card-opportunity {
+    font-size: 12px;
+    font-weight: 700;
+    padding: 5px 12px;
+    border-radius: 6px;
+    flex: 1;
+    text-align: center;
+    transition: all 0.3s;
+}
+
+.card-opportunity.excellent {
+    background: linear-gradient(135deg, #22c55e, #16a34a);
+    color: white;
+    box-shadow: 0 2px 8px rgba(34, 197, 94, 0.3);
+}
+
+.card-opportunity.good {
+    background: linear-gradient(135deg, #3b82f6, #2563eb);
+    color: white;
+    box-shadow: 0 2px 8px rgba(59, 130, 246, 0.3);
+}
+
+.card-opportunity.medium {
+    background: linear-gradient(135deg, #f59e0b, #d97706);
+    color: white;
+    box-shadow: 0 2px 8px rgba(245, 158, 11, 0.3);
+}
+
+.card-opportunity.low {
+    background: var(--bg-tertiary);
+    color: var(--text-secondary);
+    border: 1px solid var(--border-color);
+}
+
+.card-score {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--success-color);
+    background: rgba(16, 185, 129, 0.1);
+    padding: 4px 12px;
+    border-radius: 12px;
+    cursor: help;
+    transition: all 0.2s;
+}
+
+.card-score:hover {
+    background: rgba(16, 185, 129, 0.2);
+    transform: scale(1.05);
+}
+
+.card-title {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: 12px;
+    line-height: 1.3;
+    min-height: 38px;
+    display: -webkit-box;
+    line-clamp: 2;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+/* Секції в картці */
+.profitability-section,
+.risk-section,
+.liquidity-section,
+.transaction-types-section,
+.strategy-section {
+    margin-bottom: 12px;
+    padding: 10px;
+    border-radius: 6px;
+    background: rgba(255, 255, 255, 0.02);
+    border-left: 3px solid transparent;
+}
+
+.profitability-section {
+    border-left-color: #22c55e;
+}
+
+.risk-section {
+    border-left-color: #f59e0b;
+}
+
+.liquidity-section {
+    border-left-color: #3b82f6;
+}
+
+.transaction-types-section {
+    border-left-color: #8b5cf6;
+}
+
+.strategy-section {
+    border-left-color: #10b981;
+    background: rgba(16, 185, 129, 0.05);
+}
+
+.section-title {
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin-bottom: 6px;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    opacity: 0.9;
+}
+
+/* Стилі для секції стратегій */
+.strategy-label {
+    font-size: 10px;
+    font-weight: 600;
+    color: var(--text-secondary);
+    margin-top: 8px;
+    margin-bottom: 4px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.strategy-divider {
+    height: 1px;
+    background: rgba(255, 255, 255, 0.1);
+    margin: 10px 0;
+}
+
+.strategy-note {
+    margin-top: 8px;
+    padding: 6px 8px;
+    border-radius: 4px;
+    background: rgba(255, 255, 255, 0.05);
+    font-size: 11px;
+}
+
+.strategy-note .note-best {
+    color: #10b981;
+    font-weight: 600;
+}
+
+.strategy-note .note-equal {
+    color: var(--text-secondary);
+    font-weight: 500;
+}
+
+.card-stats {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.stat-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 6px 0;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.stat-row:last-child {
+    border-bottom: none;
+}
+
+.stat-row.highlight {
+    background: rgba(16, 185, 129, 0.05);
+    padding: 6px 10px;
+    margin: 0 -10px;
+    border-radius: 4px;
+    border-bottom: none;
+}
+
+.stat-label {
+    font-size: 17px;
+    color: var(--text-secondary);
+    font-weight: 500;
+}
+
+/* Підсвічування для тижневого тренду */
+.stat-row:has(.stat-label:contains("тиждень")) {
+    background: rgba(239, 68, 68, 0.05);
+    padding: 6px 10px;
+    margin: 0 -10px;
+    border-radius: 4px;
+}
+
+.liquidity-card .stat-value {
+    font-size: 16px !important;
+    color: var(--text-primary);
+    font-weight: 600;
+}
+
+.liquidity-card .stat-value.price {
+    color: var(--success-color);
+    font-size: 17px !important;
+}
+
+.liquidity-card .stat-value.recent {
+    color: var(--success-color);
+    font-weight: 700;
+}
+
+.liquidity-card .stat-value.old {
+    color: #ef4444;
+    font-weight: 500;
+}
+
+.liquidity-card .stat-value.positive {
+    color: #22c55e;
+    font-weight: 700;
+}
+
+.liquidity-card .stat-value.negative {
+    color: #ef4444;
+    font-weight: 700;
+}
+
+.liquidity-card .stat-value.info {
+    color: var(--info-color);
+}
+
+.liquidity-card .stat-value.warning {
+    color: #f59e0b;
+    font-weight: 600;
+}
+
+.liquidity-card .stat-value.neutral {
+    color: var(--text-secondary);
+}
+
+.liquidity-card .stat-value.excellent {
+    color: #22c55e;
+    font-weight: 700;
+}
+
+.liquidity-card .stat-value.good {
+    color: #3b82f6;
+    font-weight: 700;
+}
+
+.liquidity-card .stat-value.medium {
+    color: #f59e0b;
+    font-weight: 700;
+}
+
+.liquidity-card .stat-value.low {
+    color: var(--text-secondary);
+}
+
+.liquidity-card .stat-value.low-risk {
+    color: #22c55e;
+    font-weight: 700;
+}
+
+.liquidity-card .stat-value.medium-risk {
+    color: #f59e0b;
+    font-weight: 700;
+}
+
+.liquidity-card .stat-value.high-risk {
+    color: #ef4444;
+    font-weight: 700;
+}
+
+.liquidity-card .stat-value.trending-up {
+    color: #22c55e;
+    font-weight: 700;
+}
+
+.liquidity-card .stat-value.trending-down {
+    color: #ef4444;
+    font-weight: 700;
+}
+
+.liquidity-card .stat-value.trending-stable {
+    color: var(--text-secondary);
+}
+
+.card-error {
+    margin-top: 12px;
+    padding: 8px 12px;
+    background: rgba(239, 68, 68, 0.1);
+    border: 1px solid rgba(239, 68, 68, 0.3);
+    border-radius: 6px;
+    font-size: 12px;
+    color: var(--error-color);
+    text-align: center;
+}
+
+.empty-state {
+    text-align: center;
+    padding: 80px 20px;
+    color: var(--text-secondary);
+}
+
+.empty-icon {
+    font-size: 64px;
+    color: var(--text-secondary);
+    opacity: 0.5;
+    margin-bottom: 16px;
+}
+
+.empty-state p {
+    font-size: 16px;
+    margin: 8px 0;
+}
+
+.empty-subtitle {
+    font-size: 14px;
+    opacity: 0.7;
+}
+
+.tips {
+    margin-top: 32px;
+    padding: 20px;
+    background: var(--bg-secondary);
+    border-radius: 12px;
+    border: 1px solid var(--border-color);
+    text-align: left;
+    max-width: 600px;
+    margin-left: auto;
+    margin-right: auto;
+}
+
+.tip-title {
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: 12px;
+}
+
+.tips ul {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.tips li {
+    padding: 8px 0;
+    font-size: 14px;
+    color: var(--text-secondary);
+    line-height: 1.5;
+}
+
+.tips li:before {
+    content: "•";
+    color: var(--primary-color);
+    font-weight: bold;
+    display: inline-block;
+    width: 1em;
+    margin-left: -1em;
+    margin-right: 0.5em;
+}
+
+/* Responsive */
+@media (max-width: 1024px) {
+    .control-row {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    
+    .quality-selector,
+    .filter-group {
+        min-width: 100%;
+    }
+    
+    .analyze-btn {
+        width: 100%;
+        align-self: stretch;
+    }
+    
+    .results-header {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+    
+    .sort-select {
+        width: 100%;
+    }
+    
+    .liquidity-tooltip,
+    .header-tooltip {
+        width: 300px;
+    }
+}
+
+@media (max-width: 768px) {
+    .liquidity-analyzer-container {
+        padding: 16px;
+    }
+    
+    .liquidity-title {
+        font-size: 24px;
+    }
+    
+    .header-title-group {
+        flex-direction: column;
+        gap: 8px;
+    }
+    
+    .liquidity-controls {
+        padding: 16px;
+    }
+    
+    .quality-select {
+        min-width: 100%;
+    }
+    
+    .results-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .liquidity-tooltip,
+    .header-tooltip {
+        position: fixed;
+        left: 50%;
+        top: 50%;
+        transform: translate(-50%, -50%);
+        width: calc(100vw - 40px);
+        max-width: 320px;
+    }
+    
+    .liquidity-tooltip::before,
+    .header-tooltip::before {
+        display: none;
+    }
+}
+

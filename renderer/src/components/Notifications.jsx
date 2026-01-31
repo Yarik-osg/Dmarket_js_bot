@@ -1,7 +1,67 @@
 import React, { useState } from 'react';
 import { useNotifications } from '../contexts/NotificationContext.jsx';
 import { useLocale } from '../contexts/LocaleContext.jsx';
+import { 
+    RiCheckboxCircleLine, 
+    RiErrorWarningLine, 
+    RiAlertLine, 
+    RiInformationLine,
+    RiNotificationLine,
+    RiCheckLine
+} from 'react-icons/ri';
 import '../styles/Notifications.css';
+
+// NotificationItem component
+function NotificationItem({ notification, onMarkAsRead }) {
+    const getLevelIcon = (level) => {
+        switch (level) {
+            case 'success': return <RiCheckboxCircleLine style={{ color: 'var(--success-color)' }} />;
+            case 'error': return <RiErrorWarningLine style={{ color: 'var(--error-color)' }} />;
+            case 'warning': return <RiAlertLine style={{ color: 'var(--warning-color)' }} />;
+            case 'info': return <RiInformationLine style={{ color: 'var(--info-color)' }} />;
+            default: return <RiNotificationLine />;
+        }
+    };
+
+    const formatTime = (timestamp) => {
+        const date = new Date(timestamp);
+        const now = new Date();
+        const diff = now - date;
+        const minutes = Math.floor(diff / 60000);
+        const hours = Math.floor(diff / 3600000);
+        const days = Math.floor(diff / 86400000);
+
+        if (minutes < 1) return 'щойно';
+        if (minutes < 60) return `${minutes} хв тому`;
+        if (hours < 24) return `${hours} год тому`;
+        if (days < 7) return `${days} дн тому`;
+        return date.toLocaleDateString('uk-UA');
+    };
+
+    return (
+        <div className={`notification-item ${notification.read ? 'read' : 'unread'}`}>
+            <div className="notification-icon">
+                {getLevelIcon(notification.level)}
+            </div>
+            <div className="notification-content">
+                <div className="notification-header">
+                    <h3 className="notification-title">{notification.title}</h3>
+                    <span className="notification-time">{formatTime(notification.timestamp)}</span>
+                </div>
+                <p className="notification-message">{notification.message}</p>
+            </div>
+            {!notification.read && (
+                <button 
+                    onClick={() => onMarkAsRead(notification.id)}
+                    className="notification-mark-read"
+                    title="Позначити як прочитане"
+                >
+                    <RiCheckLine />
+                </button>
+            )}
+        </div>
+    );
+}
 
 function Notifications() {
     const { t } = useLocale();
@@ -282,57 +342,6 @@ function Notifications() {
                         )}
                     </div>
                 </div>
-            )}
-        </div>
-    );
-}
-
-function NotificationItem({ notification, onMarkAsRead }) {
-    const getLevelIcon = (level) => {
-        switch (level) {
-            case 'success': return '✅';
-            case 'error': return '❌';
-            case 'warning': return '⚠️';
-            case 'info': return 'ℹ️';
-            default: return '📢';
-        }
-    };
-
-    const formatTime = (timestamp) => {
-        const date = new Date(timestamp);
-        const now = new Date();
-        const diff = now - date;
-        const minutes = Math.floor(diff / 60000);
-        const hours = Math.floor(diff / 3600000);
-        const days = Math.floor(diff / 86400000);
-
-        if (minutes < 1) return 'щойно';
-        if (minutes < 60) return `${minutes} хв тому`;
-        if (hours < 24) return `${hours} год тому`;
-        if (days < 7) return `${days} дн тому`;
-        return date.toLocaleDateString('uk-UA');
-    };
-
-    return (
-        <div className={`notification-item ${notification.read ? 'read' : 'unread'}`}>
-            <div className="notification-icon">
-                {getLevelIcon(notification.level)}
-            </div>
-            <div className="notification-content">
-                <div className="notification-header">
-                    <h3 className="notification-title">{notification.title}</h3>
-                    <span className="notification-time">{formatTime(notification.timestamp)}</span>
-                </div>
-                <p className="notification-message">{notification.message}</p>
-            </div>
-            {!notification.read && (
-                <button 
-                    className="notification-mark-read"
-                    onClick={() => onMarkAsRead(notification.id)}
-                    title="Позначити як прочитане"
-                >
-                    ✓
-                </button>
             )}
         </div>
     );

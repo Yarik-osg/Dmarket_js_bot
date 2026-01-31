@@ -3,6 +3,8 @@ import { useAnalytics } from '../contexts/AnalyticsContext.jsx';
 import { useLocale } from '../contexts/LocaleContext.jsx';
 import { useAuth } from '../contexts/AuthContext.jsx';
 import { ApiService } from '../services/apiService.js';
+import { RiRefreshLine, RiDownloadLine } from 'react-icons/ri';
+import LiquidityAnalyzer from './LiquidityAnalyzer.jsx';
 import '../styles/Analytics.css';
 
 function Analytics() {
@@ -12,6 +14,7 @@ function Analytics() {
     const [period, setPeriod] = useState('30d');
     const [isLoading, setIsLoading] = useState(false);
     const [statusFilter, setStatusFilter] = useState('all'); // Фільтр за статусом: 'all', 'success', 'trade_protected'
+    const [activeTab, setActiveTab] = useState('statistics'); // 'statistics' або 'liquidity'
     
     const apiService = useMemo(() => {
         return client ? new ApiService(client) : null;
@@ -49,9 +52,30 @@ function Analytics() {
 
     return (
         <div className="analytics-container">
-                <div className="analytics-header">
-                    <h1 className="analytics-title">{t('analytics.title')}</h1>
-                    <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+            <div className="analytics-header">
+                <h1 className="analytics-title">{t('analytics.title')}</h1>
+                
+                {/* Вкладки */}
+                <div className="analytics-tabs">
+                    <button 
+                        className={`analytics-tab ${activeTab === 'statistics' ? 'active' : ''}`}
+                        onClick={() => setActiveTab('statistics')}
+                    >
+                        Статистика
+                    </button>
+                    <button 
+                        className={`analytics-tab ${activeTab === 'liquidity' ? 'active' : ''}`}
+                        onClick={() => setActiveTab('liquidity')}
+                    >
+                        Аналіз ліквідності
+                    </button>
+                </div>
+            </div>
+
+            {activeTab === 'statistics' ? (
+                <>
+                <div className="analytics-header" style={{ marginTop: '0' }}>
+                    <div style={{ display: 'flex', gap: '10px', alignItems: 'center', justifyContent: 'flex-end' }}>
                         <select 
                             value={period} 
                             onChange={(e) => setPeriod(e.target.value)}
@@ -65,23 +89,9 @@ function Analytics() {
                             onClick={handleLoadTransactions}
                             disabled={isLoading || !apiService}
                             className="btn btn-primary"
-                            style={{ 
-                                padding: '8px 16px', 
-                                fontSize: '14px',
-                                display: 'flex',
-                                alignItems: 'center',
-                                gap: '6px'
-                            }}
                             title="Додати нові транзакції з API"
                         >
-                            <span style={{ 
-                                display: 'inline-block',
-                                transform: isLoading ? 'rotate(360deg)' : 'none',
-                                transition: isLoading ? 'transform 1s linear' : 'none',
-                                fontSize: '16px'
-                            }}>
-                                🔄
-                            </span>
+                            <RiDownloadLine style={{ fontSize: '18px' }} />
                             {isLoading ? 'Завантаження...' : 'Завантажити'}
                         </button>
                         <button 
@@ -89,24 +99,12 @@ function Analytics() {
                             disabled={isLoading || !apiService}
                             className="btn btn-secondary"
                             style={{ 
-                                padding: '8px 16px', 
-                                fontSize: '14px',
-                                display: 'flex',
-                                alignItems: 'center',
-                                gap: '6px',
                                 backgroundColor: 'var(--error-color)',
                                 color: 'white'
                             }}
                             title="Повністю перезавантажити всі транзакції з API (очистить localStorage)"
                         >
-                            <span style={{ 
-                                display: 'inline-block',
-                                transform: isLoading ? 'rotate(360deg)' : 'none',
-                                transition: isLoading ? 'transform 1s linear' : 'none',
-                                fontSize: '16px'
-                            }}>
-                                🔄
-                            </span>
+                            <RiRefreshLine style={{ fontSize: '18px' }} />
                             {isLoading ? 'Оновлення...' : 'Перезавантажити'}
                         </button>
                     </div>
@@ -478,6 +476,10 @@ function Analytics() {
                     );
                 })()}
             </div>
+        </>
+        ) : (
+            <LiquidityAnalyzer />
+        )}
         </div>
     );
 }
@@ -580,6 +582,18 @@ function SimpleChart({ data }) {
             )}
             <div style={{ position: 'relative', width: '100%', height: '300px' }}>
                 <svg viewBox={`0 0 ${width} ${height}`} className="simple-chart" preserveAspectRatio="none" style={{ width: '100%', height: '100%' }}>
+                    {/* Визначаємо градієнти */}
+                    <defs>
+                        <linearGradient id="salesGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+                            <stop offset="0%" style={{ stopColor: '#10b981', stopOpacity: 0.9 }} />
+                            <stop offset="100%" style={{ stopColor: '#059669', stopOpacity: 0.7 }} />
+                        </linearGradient>
+                        <linearGradient id="purchasesGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+                            <stop offset="0%" style={{ stopColor: '#ef4444', stopOpacity: 0.9 }} />
+                            <stop offset="100%" style={{ stopColor: '#dc2626', stopOpacity: 0.7 }} />
+                        </linearGradient>
+                    </defs>
+                    
                     {data.map((d, i) => {
                         const x = (i / data.length) * width;
                         const salesHeight = (d.sales / maxValue) * height;
@@ -598,9 +612,9 @@ function SimpleChart({ data }) {
                                         y={height - salesHeight}
                                         width={barWidth}
                                         height={salesHeight}
-                                        fill="var(--success-color)"
-                                        opacity={0.7}
-                                        className="chart-bar chart-bar-sales"
+                                        fill="url(#salesGradient)"
+                                        className="chart-bar sales-bar"
+                                        rx="2"
                                     />
                                 )}
                                 {d.purchases > 0 && (
@@ -609,9 +623,9 @@ function SimpleChart({ data }) {
                                         y={height - purchasesHeight}
                                         width={barWidth}
                                         height={purchasesHeight}
-                                        fill="var(--error-color)"
-                                        opacity={0.7}
-                                        className="chart-bar chart-bar-purchases"
+                                        fill="url(#purchasesGradient)"
+                                        className="chart-bar purchases-bar"
+                                        rx="2"
                                     />
                                 )}
                             </g>

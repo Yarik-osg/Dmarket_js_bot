@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useAuth } from '../contexts/AuthContext.jsx';
 import { useNotifications } from '../contexts/NotificationContext.jsx';
 import { ApiService } from '../services/apiService.js';
+import { RiWallet3Line, RiRefreshLine } from 'react-icons/ri';
 import '../styles/BalanceDisplay.css';
 
 function BalanceDisplay() {
@@ -109,14 +110,18 @@ function BalanceDisplay() {
     return (
         <div className="balance-display">
             <div className="balance-header">
-                <span>💰 Баланс</span>
+                <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <RiWallet3Line /> Баланс
+                </span>
                 <button 
                     onClick={handleRefresh} 
                     className="balance-refresh-btn"
                     disabled={loading}
                     title="Оновити баланс"
                 >
-                    {loading ? '⏳' : '🔄'}
+                    <RiRefreshLine style={{ 
+                        animation: loading ? 'spin 1s linear infinite' : 'none' 
+                    }} />
                 </button>
             </div>
             <div className="balance-item">

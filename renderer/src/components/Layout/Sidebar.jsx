@@ -2,6 +2,16 @@ import React from 'react';
 import { useLocale } from '../../contexts/LocaleContext.jsx';
 import { useNotifications } from '../../contexts/NotificationContext.jsx';
 import BalanceDisplay from '../BalanceDisplay.jsx';
+import { 
+    RiShoppingCart2Line, 
+    RiPriceTag3Line, 
+    RiLineChartLine, 
+    RiBellLine, 
+    RiSettings3Line, 
+    RiFileListLine,
+    RiPlayCircleLine,
+    RiPauseCircleLine
+} from 'react-icons/ri';
 import '../../styles/Sidebar.css';
 
 function Sidebar({ activeTab, onTabChange, isTargetsParsingEnabled, isOffersParsingEnabled, onToggleTargetsParsing, onToggleOffersParsing }) {
@@ -9,62 +19,58 @@ function Sidebar({ activeTab, onTabChange, isTargetsParsingEnabled, isOffersPars
     const { unreadCount } = useNotifications();
 
     const menuItems = [
-        { id: 'orders', label: t('nav.orders'), icon: '📋' },
-        { id: 'offers', label: t('nav.offers'), icon: '💰' },
-        { id: 'analytics', label: t('nav.analytics'), icon: '📈' },
-        { id: 'notifications', label: t('nav.notifications'), icon: '🔔', badge: unreadCount > 0 ? unreadCount : null },
-        { id: 'settings', label: t('nav.settings'), icon: '⚙️' },
-        { id: 'logs', label: t('nav.logs'), icon: '📊' }
+        { id: 'orders', label: t('nav.orders'), icon: RiShoppingCart2Line },
+        { id: 'offers', label: t('nav.offers'), icon: RiPriceTag3Line },
+        { id: 'analytics', label: t('nav.analytics'), icon: RiLineChartLine },
+        { id: 'notifications', label: t('nav.notifications'), icon: RiBellLine, badge: unreadCount > 0 ? unreadCount : null },
+        { id: 'settings', label: t('nav.settings'), icon: RiSettings3Line },
+        { id: 'logs', label: t('nav.logs'), icon: RiFileListLine }
     ];
 
     return (
         <div className="sidebar">
-            <div className="sidebar-menu">
-                {menuItems.map(item => (
-                    <div
-                        key={item.id}
-                        className={`sidebar-item ${activeTab === item.id ? 'active' : ''}`}
-                        onClick={() => onTabChange(item.id)}
-                    >
-                        <span className="sidebar-icon">{item.icon}</span>
-                        <span className="sidebar-label">{item.label}</span>
-                        {item.badge && item.badge > 0 && (
-                            <span className="sidebar-badge">{item.badge}</span>
-                        )}
-                    </div>
-                ))}
+            <div className="sidebar-header">
+                <h2 className="sidebar-title">DMarket Bot</h2>
             </div>
-            <div className="parsing-controls" style={{ marginTop: '20px', padding: '10px', borderTop: '1px solid #333' }}>
-                <div style={{ marginBottom: '10px' }}>
-                    <button 
-                        onClick={onToggleTargetsParsing}
-                        className={`btn ${isTargetsParsingEnabled ? 'btn-danger' : 'btn-success'}`}
-                        style={{ 
-                            width: '100%',
-                            backgroundColor: isTargetsParsingEnabled ? '#dc3545' : '#28a745',
-                            color: '#ffffff',
-                            padding: '8px',
-                            fontSize: '12px'
-                        }}
-                    >
-                        {isTargetsParsingEnabled ? '⏸ Зупинити парсинг таргетів' : '▶ Запустити парсинг таргетів'}
-                    </button>
-                </div>
-                <div>
-                    <button 
-                        onClick={onToggleOffersParsing}
-                        className={`btn ${isOffersParsingEnabled ? 'btn-danger' : 'btn-success'}`}
-                        style={{ 
-                            width: '100%',
-                            backgroundColor: isOffersParsingEnabled ? '#dc3545' : '#28a745',
-                            color: '#ffffff',
-                            padding: '8px',
-                            fontSize: '12px'
-                        }}
-                    >
-                        {isOffersParsingEnabled ? '⏸ Зупинити парсинг оферів' : '▶ Запустити парсинг оферів'}
-                    </button>
-                </div>
+            <div className="sidebar-menu">
+                {menuItems.map(item => {
+                    const IconComponent = item.icon;
+                    return (
+                        <div
+                            key={item.id}
+                            className={`sidebar-item ${activeTab === item.id ? 'active' : ''}`}
+                            onClick={() => onTabChange(item.id)}
+                        >
+                            <IconComponent className="sidebar-icon" />
+                            <span className="sidebar-label">{item.label}</span>
+                            {item.badge && item.badge > 0 && (
+                                <span className="sidebar-badge">{item.badge}</span>
+                            )}
+                        </div>
+                    );
+                })}
+            </div>
+            <div className="parsing-controls">
+                <button 
+                    onClick={onToggleTargetsParsing}
+                    className={`parsing-btn ${isTargetsParsingEnabled ? 'parsing-btn-active' : ''}`}
+                >
+                    {isTargetsParsingEnabled ? (
+                        <><RiPauseCircleLine className="btn-icon-svg" /> Зупинити таргети</>
+                    ) : (
+                        <><RiPlayCircleLine className="btn-icon-svg" /> Запустити таргети</>
+                    )}
+                </button>
+                <button 
+                    onClick={onToggleOffersParsing}
+                    className={`parsing-btn ${isOffersParsingEnabled ? 'parsing-btn-active' : ''}`}
+                >
+                    {isOffersParsingEnabled ? (
+                        <><RiPauseCircleLine className="btn-icon-svg" /> Зупинити офери</>
+                    ) : (
+                        <><RiPlayCircleLine className="btn-icon-svg" /> Запустити офери</>
+                    )}
+                </button>
             </div>
             <BalanceDisplay />
         </div>

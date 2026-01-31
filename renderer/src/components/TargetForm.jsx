@@ -178,7 +178,7 @@ function TargetForm({ target, onClose, onSave, onSaveWithMaxPrice }) {
             if (formData.floatPartValue) {
                 attrs.floatPartValue = formData.floatPartValue;
             }
-            if (!formData.phaseAny && formData.phase) {
+            if (formData.phase) {
                 attrs.phase = formData.phase;
             }
             if (formData.paintSeed) {
@@ -308,33 +308,21 @@ function TargetForm({ target, onClose, onSave, onSaveWithMaxPrice }) {
 
                 <div className="form-field">
                     <label>{t('target.phase')}</label>
-                    <div className="phase-controls">
-                        <label className="checkbox-label">
-                            <input
-                                type="checkbox"
-                                checked={formData.phaseAny}
-                                onChange={(e) => setFormData(prev => ({ ...prev, phaseAny: e.target.checked }))}
-                            />
-                            {t('target.anyPhase')}
-                        </label>
-                        {!formData.phaseAny && (
-                            <select
-                                value={formData.phase}
-                                onChange={(e) => setFormData(prev => ({ ...prev, phase: e.target.value }))}
-                                className="form-input"
-                            >
-                                <option value="">{t('target.selectPhase')}</option>
-                                <option value="phase-1">Phase 1</option>
-                                <option value="phase-2">Phase 2</option>
-                                <option value="phase-3">Phase 3</option>
-                                <option value="phase-4">Phase 4</option>
-                                <option value="ruby">Ruby</option>
-                                <option value="emerald">Emerald</option>
-                                <option value="sapphire">Sapphire</option>
-                                <option value="black-pearl">Black Pearl</option>
-                            </select>
-                        )}
-                    </div>
+                    <select
+                        value={formData.phase || ''}
+                        onChange={(e) => setFormData(prev => ({ ...prev, phase: e.target.value }))}
+                        className="form-input"
+                    >
+                        <option value="">{t('target.selectPhase')}</option>
+                        <option value="phase-1">Phase 1</option>
+                        <option value="phase-2">Phase 2</option>
+                        <option value="phase-3">Phase 3</option>
+                        <option value="phase-4">Phase 4</option>
+                        <option value="ruby">Ruby</option>
+                        <option value="emerald">Emerald</option>
+                        <option value="sapphire">Sapphire</option>
+                        <option value="black-pearl">Black Pearl</option>
+                    </select>
                 </div>
 
                 <div className="form-field">
