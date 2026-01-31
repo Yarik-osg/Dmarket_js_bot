@@ -52,61 +52,10 @@ jobs:
       - store_artifacts:
           path: dist-electron/*.dmg
           destination: macos-dmg
-          retention: 3  # Зберігати 3 дні
-
-  build-windows:
-    machine:
-      image: windows-server-2019-vs2019:stable
-    steps:
-      - checkout
-      
-      - run:
-          name: Install Node.js
-          command: |
-            choco install nodejs --version=18.20.0 -y
-            refreshenv
-      
-      - restore_cache:
-          keys:
-            - v1-dependencies-{{ checksum "package-lock.json" }}
-            - v1-dependencies-
-      
-      - run:
-          name: Install dependencies
-          command: npm ci
-      
-      - save_cache:
-          paths:
-            - node_modules
-          key: v1-dependencies-{{ checksum "package-lock.json" }}
-      
-      - run:
-          name: Build frontend
-          command: npm run build
-      
-      - run:
-          name: Build Windows installer
-          command: npm run build:win
-      
-      - store_artifacts:
-          path: dist-electron/*.exe
-          destination: windows-installer
-          retention: 3
 
 workflows:
   version: 2
-  build-all:
+  build:
     jobs:
-      - build-macos:
-          filters:
-            branches:
-              only: /.*/
-            tags:
-              only: /^v.*/
-      - build-windows:
-          filters:
-            branches:
-              only: /.*/
-            tags:
-              only: /^v.*/
+      - build-macos
 
