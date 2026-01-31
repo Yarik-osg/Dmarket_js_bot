@@ -3,7 +3,8 @@ version: 2.1
 jobs:
   build-macos:
     macos:
-      xcode: 15.0.0
+      xcode: 14.3.0
+       resource_class: macos.x86.medium
     steps:
       - checkout
       
