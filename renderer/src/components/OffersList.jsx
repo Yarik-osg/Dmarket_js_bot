@@ -110,6 +110,25 @@ function OffersList({ isAutoUpdatingEnabled = false, onToggleAutoUpdate }) {
         return { min, max, value, category, color };
     };
 
+    // Format trade lock duration from seconds to readable format
+    const formatTradeLockDuration = (seconds) => {
+        if (!seconds || seconds <= 0) return null;
+        
+        const days = Math.floor(seconds / 86400);
+        const hours = Math.floor((seconds % 86400) / 3600);
+        const minutes = Math.floor((seconds % 3600) / 60);
+        
+        if (days > 0) {
+            return `${days}д ${hours}г`;
+        } else if (hours > 0) {
+            return `${hours}г ${minutes}хв`;
+        } else if (minutes > 0) {
+            return `${minutes}хв`;
+        } else {
+            return `${seconds}с`;
+        }
+    };
+
 
     const loadOffers = useCallback(async () => {
         if (!apiService || loading) return; // Prevent concurrent calls
@@ -1050,6 +1069,7 @@ function OffersList({ isAutoUpdatingEnabled = false, onToggleAutoUpdate }) {
                         <tr>
                             <th>№</th>
                             <th>Предмет</th>
+                            <th>Трейдбан</th>
                             <th>Ціна</th>
                             <th>Ринкова ціна</th>
                             <th>Мін.</th>
@@ -1060,7 +1080,7 @@ function OffersList({ isAutoUpdatingEnabled = false, onToggleAutoUpdate }) {
                     <tbody>
                         {filteredOffers.length === 0 ? (
                             <tr>
-                                <td colSpan="8" className="empty-state">
+                                <td colSpan="9" className="empty-state">
                                     {t('offers.empty')}
                                 </td>
                             </tr>
@@ -1090,6 +1110,41 @@ function OffersList({ isAutoUpdatingEnabled = false, onToggleAutoUpdate }) {
                                             <div className="offer-item">
                                                 {title}
                                             </div>
+                                        </td>
+                                        <td>
+                                            {(() => {
+                                                const tradeLockDuration = offer.extra?.tradeLockDuration;
+                                                const tradable = offer.extra?.tradable;
+                                                const tradeLock = offer.extra?.tradeLock;
+                                                
+                                                // Check if there's a trade ban
+                                                const hasTradeBan = tradeLockDuration && tradeLockDuration > 0;
+                                                const isNotTradable = tradable === false;
+                                                
+                                                if (hasTradeBan || isNotTradable) {
+                                                    const formattedDuration = tradeLockDuration ? formatTradeLockDuration(tradeLockDuration) : null;
+                                                    return (
+                                                        <div 
+                                                            style={{ 
+                                                                color: '#ef4444',
+                                                                fontWeight: '500',
+                                                                fontSize: '13px'
+                                                            }}
+                                                            title={
+                                                                formattedDuration 
+                                                                    ? `Трейдбан: ${formattedDuration}${tradeLock ? ` (Lock: ${tradeLock})` : ''}`
+                                                                    : 'Предмет не можна торгувати'
+                                                            }
+                                                        >
+                                                            {formattedDuration ? formattedDuration : 'Немає'}
+                                                        </div>
+                                                    );
+                                                }
+                                                
+                                                return (
+                                                    <span style={{ color: '#10b981', fontSize: '13px' }}>Немає</span>
+                                                );
+                                            })()}
                                         </td>
                                         <td>
                                             <div className="offer-price-cell">
