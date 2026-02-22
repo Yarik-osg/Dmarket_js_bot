@@ -206,7 +206,13 @@ function TargetForm({ target, onClose, onSave, onSaveWithMaxPrice }) {
                 const response = await createTarget(targetData);
                 // If maxPrice was provided and onSaveWithMaxPrice callback exists, save it
                 if (formData.maxPrice && onSaveWithMaxPrice) {
-                    onSaveWithMaxPrice(formData.title, formData.floatPartValue || '', formData.maxPrice);
+                    onSaveWithMaxPrice(
+                        formData.title, 
+                        formData.floatPartValue || '', 
+                        formData.maxPrice,
+                        formData.phase || null,
+                        formData.paintSeed && formData.paintSeed !== '0' ? formData.paintSeed : null
+                    );
                 }
                 onSave();
             }

@@ -20,7 +20,7 @@ class ApiService {
         return await this.client.call('POST', path, targetData);
     }
 
-    async updateTarget(targetId, targetData, gameId = 'a8db', title, floatPartValue = null) {
+    async updateTarget(targetId, targetData, gameId = 'a8db', title, floatPartValue = null, phase = null, paintSeed = null) {
         const path = `/exchange/v1/target/update`;
         // https://api.dmarket.com/exchange/v1/target/update
         // Price should be in cents (without decimal point)
@@ -61,6 +61,19 @@ class ApiService {
             attributes.floatPartValue = floatPartValue;
         }
         
+        // Add phase if provided
+        if (phase && phase !== '' && phase !== 'N/A') {
+            attributes.phase = phase;
+        }
+        
+        // Add paintSeed if provided (and not 0)
+        if (paintSeed !== null && paintSeed !== undefined && paintSeed !== '' && paintSeed !== 'N/A') {
+            const paintSeedNum = parseInt(paintSeed);
+            if (!isNaN(paintSeedNum) && paintSeedNum !== 0) {
+                attributes.paintSeed = paintSeedNum;
+            }
+        }
+        
         const requestBody = {
             force: true,
             targets: [{ 
@@ -80,6 +93,8 @@ class ApiService {
         console.log('updateTarget request:', JSON.stringify(requestBody, null, 2));
         console.log('updateTarget - title value:', title, 'type:', typeof title);
         console.log('updateTarget - floatPartValue:', floatPartValue);
+        console.log('updateTarget - phase:', phase);
+        console.log('updateTarget - paintSeed:', paintSeed);
         const response = await this.client.call('POST', path, requestBody);
         
         console.log('updateTarget response:', JSON.stringify(response, null, 2));

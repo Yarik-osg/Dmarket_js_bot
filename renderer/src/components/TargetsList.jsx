@@ -455,6 +455,8 @@ function TargetsList({ isAutoUpdatingEnabled = false, onToggleAutoUpdate }) {
                 const title = target.itemTitle || target.title || target.extra?.name || target.attributes?.title;
                 const gameId = target.gameId || 'a8db';
                 const floatPartValue = target.extra?.floatPartValue || target.attributes?.floatPartValue || null;
+                const phase = target.attributes?.phase || target.extra?.phase || null;
+                const paintSeed = target.attributes?.paintSeed || target.extra?.paintSeed || null;
                 const ourAmount = target.amount || 1;
 
                 if (!title || !targetId) {
@@ -466,7 +468,7 @@ function TargetsList({ isAutoUpdatingEnabled = false, onToggleAutoUpdate }) {
                 await updateTarget(targetId, { 
                     price: { amount: resetPrice, currency: 'USD' }, 
                     amount: ourAmount 
-                }, gameId, title, floatPartValue, true);
+                }, gameId, title, floatPartValue, phase, paintSeed, true);
                 
                 successCount++;
             } catch (err) {
@@ -571,6 +573,10 @@ function TargetsList({ isAutoUpdatingEnabled = false, onToggleAutoUpdate }) {
                     const gameId = target.gameId || 'a8db';
                     // Get floatPartValue from target
                     const floatPartValue = target.extra?.floatPartValue || target.attributes?.floatPartValue || null;
+                    // Get phase from target
+                    const phase = target.attributes?.phase || target.extra?.phase || null;
+                    // Get paintSeed from target
+                    const paintSeed = target.attributes?.paintSeed || target.extra?.paintSeed || null;
                     // Get maxPrice from saved values using itemId (stable identifier)
                     const maxPrice = currentMaxPrices[itemId] || target.maxPrice;
 
@@ -752,7 +758,7 @@ function TargetsList({ isAutoUpdatingEnabled = false, onToggleAutoUpdate }) {
                             console.log('ourAmount:', ourAmount);
                             console.log('maxPriceCents:', maxPriceCents);
                             try {
-                                await updateTarget(targetId, { price: { amount: newPrice, currency: 'USD' }, amount: ourAmount }, gameId, title, floatPartValue, true);
+                                await updateTarget(targetId, { price: { amount: newPrice, currency: 'USD' }, amount: ourAmount }, gameId, title, floatPartValue, phase, paintSeed, true);
                                 addLog({
                                     type: 'success',
                                     category: 'parsing',
@@ -1037,7 +1043,7 @@ function TargetsList({ isAutoUpdatingEnabled = false, onToggleAutoUpdate }) {
         }
     };
 
-    const handleAmountChange = async (targetId, itemId, newAmount, title, gameId, floatPartValue, currentAmount, currentPrice) => {
+    const handleAmountChange = async (targetId, itemId, newAmount, title, gameId, floatPartValue, phase, paintSeed, currentAmount, currentPrice) => {
         const amount = parseInt(newAmount, 10);
         if (isNaN(amount) || amount < 1) {
             return; // Invalid amount, don't update
@@ -1066,7 +1072,7 @@ function TargetsList({ isAutoUpdatingEnabled = false, onToggleAutoUpdate }) {
                 const response = await updateTarget(targetId, {
                     price: { amount: priceAmount, currency: 'USD' },
                     amount: amount
-                }, gameId, title, floatPartValue, true);
+                }, gameId, title, floatPartValue, phase, paintSeed, true);
                 
                 // Double-check response for failedTargets even if no exception was thrown
                 const failedTargets = response?.failedTargets || response?.failed_targets || [];
@@ -1185,26 +1191,35 @@ function TargetsList({ isAutoUpdatingEnabled = false, onToggleAutoUpdate }) {
         return title.toLowerCase().includes(searchQuery.toLowerCase());
     });
 
-    const handleSaveWithMaxPrice = useCallback((title, floatPartValue, maxPrice) => {
+    const handleSaveWithMaxPrice = useCallback((title, floatPartValue, maxPrice, phase = null, paintSeed = null) => {
         // Store maxPrice temporarily - will be saved after target is loaded
-        setPendingNewTargetMaxPrice({ title, floatPartValue, maxPrice });
-        console.log('Stored pending maxPrice for new target:', { title, floatPartValue, maxPrice });
+        setPendingNewTargetMaxPrice({ title, floatPartValue, maxPrice, phase, paintSeed });
+        console.log('Stored pending maxPrice for new target:', { title, floatPartValue, maxPrice, phase, paintSeed });
     }, []);
     
     // Save maxPrice for newly created target when targets are loaded
     useEffect(() => {
         if (pendingNewTargetMaxPrice && targets.length > 0) {
-            const { title, floatPartValue, maxPrice } = pendingNewTargetMaxPrice;
-            // Find the target by title and floatPartValue
+            const { title, floatPartValue, maxPrice, phase, paintSeed } = pendingNewTargetMaxPrice;
+            // Find the target by title, floatPartValue, phase, and paintSeed
             const matchingTarget = targets.find(t => {
                 const targetTitle = t.itemTitle || t.title || t.extra?.name || t.attributes?.title;
                 const targetFloat = t.extra?.floatPartValue || t.attributes?.floatPartValue || '';
-                return targetTitle === title && targetFloat === floatPartValue;
+                const targetPhase = t.attributes?.phase || t.extra?.phase || null;
+                const targetPaintSeed = t.attributes?.paintSeed || t.extra?.paintSeed || null;
+                
+                const titleMatch = targetTitle === title;
+                const floatMatch = targetFloat === floatPartValue;
+                const phaseMatch = (!phase && !targetPhase) || (phase === targetPhase);
+                const paintSeedMatch = (!paintSeed || paintSeed === '0' || paintSeed === 0) && (!targetPaintSeed || targetPaintSeed === 0) ||
+                                     (paintSeed && targetPaintSeed && parseInt(paintSeed) === parseInt(targetPaintSeed));
+                
+                return titleMatch && floatMatch && phaseMatch && paintSeedMatch;
             });
             
             if (matchingTarget && matchingTarget.itemId) {
                 const itemId = matchingTarget.itemId;
-                console.log('Saving maxPrice for newly created target:', { itemId, title, floatPartValue, maxPrice });
+                console.log('Saving maxPrice for newly created target:', { itemId, title, floatPartValue, maxPrice, phase, paintSeed });
                 setMaxPrices(prev => {
                     const updated = {
                         ...prev,
@@ -1221,7 +1236,14 @@ function TargetsList({ isAutoUpdatingEnabled = false, onToggleAutoUpdate }) {
                     type: 'success',
                     category: 'target',
                     message: `Таргет створено: ${title}`,
-                    details: { title, itemId, maxPrice, floatPartValue }
+                    details: { 
+                        title, 
+                        itemId, 
+                        maxPrice, 
+                        floatPartValue: floatPartValue || '', 
+                        phase: phase || null,
+                        paintSeed: paintSeed && paintSeed !== '0' && paintSeed !== 0 ? paintSeed : null
+                    }
                 });
                 // Clear pending maxPrice
                 setPendingNewTargetMaxPrice(null);
@@ -1476,7 +1498,7 @@ function TargetsList({ isAutoUpdatingEnabled = false, onToggleAutoUpdate }) {
                                                 onBlur={(e) => {
                                                     const newAmount = parseInt(e.target.value, 10);
                                                     if (!isNaN(newAmount) && newAmount >= 1 && newAmount !== amount) {
-                                                        handleAmountChange(targetId, itemId, newAmount, title, gameId, floatPartValue !== 'N/A' ? floatPartValue : null, amount, price);
+                                                        handleAmountChange(targetId, itemId, newAmount, title, gameId, floatPartValue !== 'N/A' ? floatPartValue : null, phase, paintSeed, amount, price);
                                                         // Clear pending amount after successful update
                                                         setPendingAmounts(prev => {
                                                             const updated = { ...prev };

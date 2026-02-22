@@ -69,11 +69,11 @@ export function useTargets() {
         }
     }, [apiService, loadTargets]);
 
-    const updateTarget = useCallback(async (targetId, targetData, gameId, title, floatPartValue, skipReload = false) => {
+    const updateTarget = useCallback(async (targetId, targetData, gameId, title, floatPartValue, phase = null, paintSeed = null, skipReload = false) => {
         if (!apiService) throw new Error('Not authenticated');
 
         try {
-            const response = await apiService.updateTarget(targetId, targetData, gameId, title, floatPartValue);
+            const response = await apiService.updateTarget(targetId, targetData, gameId, title, floatPartValue, phase, paintSeed);
             if (!skipReload) {
                 await loadTargets();
             }
