@@ -75,13 +75,15 @@ jobs:
       - name: Build frontend
         run: npm run build
 
-      - name: Build macOS DMG
+      - name: Build macOS (Intel + Apple Silicon)
         run: npm run build:mac
 
       - name: Upload macOS artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: macos-dmg
-          path: dist-electron/*.dmg
+          name: macos-builds
+          path: |
+            dist-electron/*.dmg
+            dist-electron/*-mac.zip
           retention-days: 3
 
