@@ -249,7 +249,7 @@ function Settings({ updater }) {
 
                 {updater && (
                     <div className="settings-section">
-                        <h2 className="settings-section-title">Оновлення додатку</h2>
+                        <h2 className="settings-section-title">Оновлення додатку(тестую реліз)</h2>
                         <p className="settings-description" style={{ marginTop: '-12px' }}>
                             Поточна версія: <strong>{updater.appVersion || '—'}</strong>
                             {updater.remoteVersion ? (
