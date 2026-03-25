@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext.jsx';
 import { useLogs } from '../contexts/LogsContext.jsx';
 import { showConfirmModal } from '../utils/modal.js';
+import { getReleaseNotesForVersion } from '../data/releaseNotes.js';
 import '../styles/Settings.css';
 
 function Settings({ updater }) {
@@ -13,6 +14,8 @@ function Settings({ updater }) {
     const [success, setSuccess] = useState('');
     const [loading, setLoading] = useState(false);
     const [showKeys, setShowKeys] = useState(false);
+
+    const updaterReleaseNotes = updater ? getReleaseNotesForVersion(updater.appVersion) : [];
 
     useEffect(() => {
         // Load current keys from storage (masked)
@@ -249,7 +252,19 @@ function Settings({ updater }) {
 
                 {updater && (
                     <div className="settings-section">
-                        <h2 className="settings-section-title">Оновлення додатку(тестую реліз)</h2>
+                        <h2 className="settings-section-title">Оновлення додатку</h2>
+                        {updaterReleaseNotes.length > 0 && (
+                            <details className="settings-changelog-details">
+                                <summary className="settings-changelog-summary">
+                                    Зміни в поточній версії ({updater.appVersion || '—'})
+                                </summary>
+                                <ul className="settings-changelog-list">
+                                    {updaterReleaseNotes.map((line, i) => (
+                                        <li key={i}>{line}</li>
+                                    ))}
+                                </ul>
+                            </details>
+                        )}
                         <p className="settings-description" style={{ marginTop: '-12px' }}>
                             Поточна версія: <strong>{updater.appVersion || '—'}</strong>
                             {updater.remoteVersion ? (
