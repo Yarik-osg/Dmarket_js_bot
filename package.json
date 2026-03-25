@@ -30,7 +30,8 @@
       {
         "provider": "github",
         "owner": "Yarik-osg",
-        "repo": "Dmarket_js_bot"
+        "repo": "Dmarket_js_bot",
+        "releaseType": "release"
       }
     ],
     "win": {
