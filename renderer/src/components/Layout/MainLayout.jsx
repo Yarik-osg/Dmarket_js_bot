@@ -23,6 +23,14 @@ function MainLayout() {
     const [isOffersParsingEnabled, setIsOffersParsingEnabled] = useState(false);
     const transactionMonitorRef = useRef(null);
     const hasLoadedInitialTransactions = useRef(false);
+    const expectingManualUpdaterResultRef = useRef(false);
+
+    const [appVersion, setAppVersion] = useState('');
+    const [updaterPhase, setUpdaterPhase] = useState('idle');
+    const [remoteVersion, setRemoteVersion] = useState(null);
+    const [updaterError, setUpdaterError] = useState('');
+    const [upToDateHint, setUpToDateHint] = useState('');
+    const [downloadPercent, setDownloadPercent] = useState(0);
 
     const apiService = useMemo(() => {
         return client ? new ApiService(client) : null;
@@ -79,6 +87,98 @@ function MainLayout() {
         }
     }, [apiService, isAuthenticated, addTransaction, showNotification]);
 
+    useEffect(() => {
+        if (!window.electronAPI?.updater) return undefined;
+        window.electronAPI.updater.getVersion().then(setAppVersion);
+        const unsubscribe = window.electronAPI.updater.onEvent((ev) => {
+            setUpdaterError('');
+            switch (ev.type) {
+                case 'checking':
+                    setUpdaterPhase('checking');
+                    break;
+                case 'available':
+                    setUpdaterPhase('available');
+                    setRemoteVersion(ev.version);
+                    setDownloadPercent(0);
+                    showNotification({
+                        type: 'info',
+                        title: 'Доступне оновлення',
+                        message: `Версія ${ev.version}. У налаштуваннях натисніть «Завантажити оновлення».`
+                    });
+                    break;
+                case 'not-available':
+                    setUpdaterPhase('idle');
+                    setRemoteVersion(null);
+                    if (expectingManualUpdaterResultRef.current) {
+                        setUpToDateHint('У вас встановлена остання версія.');
+                        expectingManualUpdaterResultRef.current = false;
+                    }
+                    break;
+                case 'error':
+                    setUpdaterPhase('idle');
+                    expectingManualUpdaterResultRef.current = false;
+                    setUpdaterError(ev.message || 'Помилка оновлення');
+                    break;
+                case 'progress':
+                    setUpdaterPhase('downloading');
+                    setDownloadPercent(Math.round(ev.percent ?? 0));
+                    break;
+                case 'downloaded':
+                    setUpdaterPhase('ready');
+                    setDownloadPercent(100);
+                    break;
+                default:
+                    break;
+            }
+        });
+        return unsubscribe;
+    }, [showNotification]);
+
+    const handleUpdaterCheck = async () => {
+        if (!window.electronAPI?.updater) return;
+        setUpdaterError('');
+        setUpToDateHint('');
+        expectingManualUpdaterResultRef.current = true;
+        const result = await window.electronAPI.updater.check();
+        if (!result.ok) {
+            expectingManualUpdaterResultRef.current = false;
+            if (result.reason === 'dev') {
+                setUpdaterError('Перевірка оновлень працює лише у встановленій збірці, не в режимі розробки (npm start).');
+            } else if (result.error) {
+                setUpdaterError(result.error);
+            }
+        }
+    };
+
+    const handleUpdaterDownload = async () => {
+        if (!window.electronAPI?.updater) return;
+        setUpdaterError('');
+        const result = await window.electronAPI.updater.download();
+        if (!result.ok && result.error) {
+            setUpdaterError(result.error);
+            setUpdaterPhase('available');
+        }
+    };
+
+    const handleUpdaterQuitAndInstall = () => {
+        window.electronAPI?.updater?.quitAndInstall();
+    };
+
+    const updaterPanel =
+        window.electronAPI?.updater
+            ? {
+                  appVersion,
+                  phase: updaterPhase,
+                  remoteVersion,
+                  error: updaterError,
+                  upToDateHint,
+                  downloadPercent,
+                  onCheck: handleUpdaterCheck,
+                  onDownload: handleUpdaterDownload,
+                  onInstall: handleUpdaterQuitAndInstall
+              }
+            : null;
+
     if (!isAuthenticated) {
         return <AuthScreen />;
     }
@@ -90,7 +190,7 @@ function MainLayout() {
             case 'notifications':
                 return <Notifications />;
             case 'settings':
-                return <Settings />;
+                return <Settings updater={updaterPanel} />;
             case 'logs':
                 return <LogsList />;
             default:

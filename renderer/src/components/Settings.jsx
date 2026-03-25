@@ -4,7 +4,7 @@ import { useLogs } from '../contexts/LogsContext.jsx';
 import { showConfirmModal } from '../utils/modal.js';
 import '../styles/Settings.css';
 
-function Settings() {
+function Settings({ updater }) {
     const { login, logout, isAuthenticated } = useAuth();
     const { addLog } = useLogs();
     const [publicKey, setPublicKey] = useState('');
@@ -246,6 +246,65 @@ function Settings() {
                         </div>
                     </form>
                 </div>
+
+                {updater && (
+                    <div className="settings-section">
+                        <h2 className="settings-section-title">Оновлення додатку</h2>
+                        <p className="settings-description" style={{ marginTop: '-12px' }}>
+                            Поточна версія: <strong>{updater.appVersion || '—'}</strong>
+                            {updater.remoteVersion ? (
+                                <span>
+                                    {' '}
+                                    · доступна: <strong>{updater.remoteVersion}</strong>
+                                </span>
+                            ) : null}
+                        </p>
+
+                        {updater.upToDateHint ? <div className="settings-success">{updater.upToDateHint}</div> : null}
+                        {updater.error ? <div className="settings-error">{updater.error}</div> : null}
+
+                        {updater.phase === 'checking' && (
+                            <p className="settings-description" style={{ marginBottom: 0 }}>
+                                Перевірка оновлень…
+                            </p>
+                        )}
+
+                        {updater.phase === 'downloading' && (
+                            <div className="settings-update-progress-wrap">
+                                <div className="settings-update-progress">
+                                    <div
+                                        className="settings-update-progress-bar"
+                                        style={{ width: `${updater.downloadPercent}%` }}
+                                    />
+                                </div>
+                                <p className="settings-description" style={{ marginBottom: 0, marginTop: 8 }}>
+                                    Завантаження: {updater.downloadPercent}%
+                                </p>
+                            </div>
+                        )}
+
+                        <div className="settings-actions" style={{ marginTop: '16px' }}>
+                            <button
+                                type="button"
+                                className="btn btn-primary settings-save-btn"
+                                onClick={updater.onCheck}
+                                disabled={updater.phase === 'checking' || updater.phase === 'downloading'}
+                            >
+                                Перевірити оновлення
+                            </button>
+                            {updater.phase === 'available' && (
+                                <button type="button" className="btn btn-secondary" onClick={updater.onDownload}>
+                                    Завантажити оновлення
+                                </button>
+                            )}
+                            {updater.phase === 'ready' && (
+                                <button type="button" className="btn btn-primary" onClick={updater.onInstall}>
+                                    Встановити та перезапустити
+                                </button>
+                            )}
+                        </div>
+                    </div>
+                )}
 
                 <div className="settings-section">
                     <h2 className="settings-section-title">Безпека</h2>

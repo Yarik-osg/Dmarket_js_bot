@@ -1,43 +1,28 @@
 directories:
   output: dist-electron
   buildResources: build
-appId: com.dmarket.bot
+appId: com.github.yarik-osg.dmarket-bot
 productName: DMarket Bot
 files:
   - filter:
-      - main/**
-      - renderer/dist/**
+      - main/**/*
+      - renderer/dist/**/*
       - package.json
-      - shared/**
-extraMetadata:
-  main: main/main.js
+publish:
+  - provider: github
+    owner: Yarik-osg
+    repo: Dmarket_js_bot
+win:
+  target:
+    - nsis
+  verifyUpdateCodeSignature: false
 nsis:
   oneClick: false
   allowToChangeInstallationDirectory: true
-  createDesktopShortcut: true
-  createStartMenuShortcut: true
-win:
-  target:
-    - target: nsis
-      arch:
-        - x64
+  differentialPackage: true
 mac:
   target:
-    - target: dmg
-      arch:
-        - x64
-        - arm64
-  category: public.app-category.utilities
-  minimumSystemVersion: '10.13'
-  hardenedRuntime: false
-  gatekeeperAssess: false
-  identity: null
-  entitlements: null
-  entitlementsInherit: null
-  extendInfo:
-    LSMinimumSystemVersion: '10.13'
-    NSHighResolutionCapable: true
-linux:
-  target: AppImage
-publish: null
+    - zip
+    - dmg
+  category: public.app-category.finance
 electronVersion: 33.4.11

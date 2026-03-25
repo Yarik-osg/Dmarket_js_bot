@@ -20,5 +20,16 @@ contextBridge.exposeInMainWorld('electronAPI', {
         has: (key) => {
             return ipcRenderer.invoke('store-has', key);
         }
+    },
+    updater: {
+        getVersion: () => ipcRenderer.invoke('updater-get-version'),
+        check: () => ipcRenderer.invoke('updater-check'),
+        download: () => ipcRenderer.invoke('updater-download'),
+        quitAndInstall: () => ipcRenderer.invoke('updater-quit-install'),
+        onEvent: (callback) => {
+            const listener = (_, payload) => callback(payload);
+            ipcRenderer.on('updater-event', listener);
+            return () => ipcRenderer.removeListener('updater-event', listener);
+        }
     }
 });

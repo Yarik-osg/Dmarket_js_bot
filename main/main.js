@@ -2,6 +2,9 @@ import { app, BrowserWindow, ipcMain } from 'electron';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 import Store from 'electron-store';
+import electronUpdater from 'electron-updater';
+
+const { autoUpdater } = electronUpdater;
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -31,6 +34,84 @@ ipcMain.handle('store-clear', () => {
 
 ipcMain.handle('store-has', (event, key) => {
     return store.has(key);
+});
+
+function sendUpdaterEvent(payload) {
+    if (mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.webContents.send('updater-event', payload);
+    }
+}
+
+let autoUpdaterListenersAttached = false;
+
+function setupAutoUpdater() {
+    if (!app.isPackaged || autoUpdaterListenersAttached) return;
+    autoUpdaterListenersAttached = true;
+
+    autoUpdater.autoDownload = false;
+    autoUpdater.autoInstallOnAppQuit = true;
+
+    autoUpdater.on('checking-for-update', () => {
+        sendUpdaterEvent({ type: 'checking' });
+    });
+    autoUpdater.on('update-available', (info) => {
+        sendUpdaterEvent({
+            type: 'available',
+            version: info.version,
+            releaseNotes: info.releaseNotes
+        });
+    });
+    autoUpdater.on('update-not-available', () => {
+        sendUpdaterEvent({ type: 'not-available' });
+    });
+    autoUpdater.on('error', (err) => {
+        sendUpdaterEvent({ type: 'error', message: err?.message || String(err) });
+    });
+    autoUpdater.on('download-progress', (progress) => {
+        sendUpdaterEvent({
+            type: 'progress',
+            percent: progress.percent,
+            transferred: progress.transferred,
+            total: progress.total
+        });
+    });
+    autoUpdater.on('update-downloaded', (info) => {
+        sendUpdaterEvent({
+            type: 'downloaded',
+            version: info.version
+        });
+    });
+}
+
+ipcMain.handle('updater-get-version', () => app.getVersion());
+
+ipcMain.handle('updater-check', async () => {
+    if (!app.isPackaged) {
+        return { ok: false, reason: 'dev' };
+    }
+    try {
+        const result = await autoUpdater.checkForUpdates();
+        return { ok: true, updateInfo: result?.updateInfo };
+    } catch (e) {
+        return { ok: false, error: e?.message || String(e) };
+    }
+});
+
+ipcMain.handle('updater-download', async () => {
+    if (!app.isPackaged) {
+        return { ok: false, reason: 'dev' };
+    }
+    try {
+        await autoUpdater.downloadUpdate();
+        return { ok: true };
+    } catch (e) {
+        return { ok: false, error: e?.message || String(e) };
+    }
+});
+
+ipcMain.handle('updater-quit-install', () => {
+    if (!app.isPackaged) return;
+    autoUpdater.quitAndInstall(false, true);
 });
 
 function createWindow() {
@@ -109,6 +190,13 @@ function createWindow() {
 
 app.whenReady().then(() => {
     createWindow();
+    setupAutoUpdater();
+
+    if (app.isPackaged) {
+        setTimeout(() => {
+            autoUpdater.checkForUpdates().catch(() => {});
+        }, 8000);
+    }
 
     app.on('activate', () => {
         if (BrowserWindow.getAllWindows().length === 0) {

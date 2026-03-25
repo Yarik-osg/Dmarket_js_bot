@@ -11,7 +11,46 @@
     "build:electron": "npm run build && cross-env NODE_ENV=production electron-builder --publish never",
     "build:win": "npm run build && cross-env NODE_ENV=production electron-builder --win --publish never",
     "build:mac": "npm run build && cross-env NODE_ENV=production electron-builder --mac --publish never",
-    "dist": "npm run build && cross-env NODE_ENV=production electron-builder"
+    "dist": "npm run build && cross-env NODE_ENV=production electron-builder",
+    "dist:publish": "npm run build && cross-env NODE_ENV=production electron-builder --win --publish always",
+    "dist:publish:mac": "npm run build && cross-env NODE_ENV=production electron-builder --mac --publish always"
+  },
+  "build": {
+    "appId": "com.github.yarik-osg.dmarket-bot",
+    "productName": "DMarket Bot",
+    "directories": {
+      "output": "dist-electron"
+    },
+    "files": [
+      "main/**/*",
+      "renderer/dist/**/*",
+      "package.json"
+    ],
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "Yarik-osg",
+        "repo": "Dmarket_js_bot"
+      }
+    ],
+    "win": {
+      "target": [
+        "nsis"
+      ],
+      "verifyUpdateCodeSignature": false
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "differentialPackage": true
+    },
+    "mac": {
+      "target": [
+        "zip",
+        "dmg"
+      ],
+      "category": "public.app-category.finance"
+    }
   },
   "keywords": [
     "dmarket",
@@ -55,6 +94,7 @@
     "axios": "^1.13.2",
     "date-fns": "^4.1.0",
     "electron-store": "^10.0.0",
+    "electron-updater": "^6.8.3",
     "mantine-datatable": "^8.3.13",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
