@@ -1,6 +1,6 @@
 {
   "name": "dmarket-bot",
-  "version": "0.8.2",
+  "version": "0.8.3",
   "description": "DMarket Trading Bot Desktop Application",
   "main": "main/main.js",
   "type": "module",
@@ -119,6 +119,7 @@
     "react-modal": "^3.16.3",
     "react-toastify": "^11.0.5",
     "recharts": "^3.6.0",
+    "semver": "^7.7.1",
     "tweetnacl": "^1.0.3",
     "zod": "^4.2.1"
   }

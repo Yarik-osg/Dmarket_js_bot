@@ -3,6 +3,7 @@ import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 import Store from 'electron-store';
 import electronUpdater from 'electron-updater';
+import { checkMacUpdate, downloadMacUpdate } from './updater/macGithub.js';
 
 const { autoUpdater } = electronUpdater;
 
@@ -57,6 +58,7 @@ function sendUpdaterEvent(payload) {
 let autoUpdaterListenersAttached = false;
 
 function setupAutoUpdater() {
+    if (process.platform === 'darwin') return;
     if (!app.isPackaged || autoUpdaterListenersAttached) return;
     autoUpdaterListenersAttached = true;
 
@@ -104,6 +106,9 @@ ipcMain.handle('updater-check', async () => {
     if (!app.isPackaged) {
         return { ok: false, reason: 'dev' };
     }
+    if (process.platform === 'darwin') {
+        return checkMacUpdate({ app, sendUpdaterEvent });
+    }
     try {
         const result = await autoUpdater.checkForUpdates();
         return { ok: true, updateInfo: result?.updateInfo };
@@ -117,7 +122,7 @@ ipcMain.handle('updater-download', async () => {
         return { ok: false, reason: 'dev' };
     }
     if (process.platform === 'darwin') {
-        return { ok: false, error: 'mac-manual-update' };
+        return downloadMacUpdate({ app, shell, sendUpdaterEvent });
     }
     try {
         await autoUpdater.downloadUpdate();
@@ -210,7 +215,7 @@ app.whenReady().then(() => {
     createWindow();
     setupAutoUpdater();
 
-    if (app.isPackaged) {
+    if (app.isPackaged && process.platform !== 'darwin') {
         setTimeout(() => {
             autoUpdater.checkForUpdates().catch(() => {});
         }, 8000);

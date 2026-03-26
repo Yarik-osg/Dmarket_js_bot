@@ -256,10 +256,19 @@ function Settings({ updater }) {
                         <h2 className="settings-section-title">Оновлення додатку</h2>
                         {updater.manualMacUpdate ? (
                             <div className="settings-mac-update-note" role="note">
-                                <strong>macOS:</strong> автооновлення в застосунку недоступне (для нього потрібен платний
-                                підпис і нотаризація Apple). Коли з’явиться нова версія, завантажте{' '}
-                                <strong>.dmg</strong> з GitHub і встановіть поверх старої.
+                                <strong>macOS:</strong> автооновлення в застосунку недоступне без платного підпису Apple.
+                                Натисніть «Завантажити оновлення (ZIP)» — архів збережеться у тимчасовій папці й
+                                відкриється; розпакуйте <strong>.app</strong> і замініть стару копію в Програмах.
+                                Альтернатива — завантажити <strong>.dmg</strong> зі сторінки релізу на GitHub.
                             </div>
+                        ) : null}
+                        {updater.manualMacUpdate && updater.remoteReleaseNotes ? (
+                            <details className="settings-changelog-details" style={{ marginBottom: 16 }}>
+                                <summary className="settings-changelog-summary">
+                                    Примітки до нової версії на GitHub
+                                </summary>
+                                <div className="settings-remote-release-body">{updater.remoteReleaseNotes}</div>
+                            </details>
                         ) : null}
                         {updaterReleaseNotes.length > 0 && (
                             <details className="settings-changelog-details">
@@ -284,6 +293,9 @@ function Settings({ updater }) {
                         </p>
 
                         {updater.upToDateHint ? <div className="settings-success">{updater.upToDateHint}</div> : null}
+                        {updater.macPostDownloadHint ? (
+                            <div className="settings-success">{updater.macPostDownloadHint}</div>
+                        ) : null}
                         {updater.error ? <div className="settings-error">{updater.error}</div> : null}
 
                         {updater.phase === 'checking' && (
@@ -292,7 +304,7 @@ function Settings({ updater }) {
                             </p>
                         )}
 
-                        {!updater.manualMacUpdate && updater.phase === 'downloading' && (
+                        {updater.phase === 'downloading' && (
                             <div className="settings-update-progress-wrap">
                                 <div className="settings-update-progress">
                                     <div
@@ -301,7 +313,8 @@ function Settings({ updater }) {
                                     />
                                 </div>
                                 <p className="settings-description" style={{ marginBottom: 0, marginTop: 8 }}>
-                                    Завантаження: {updater.downloadPercent}%
+                                    {updater.manualMacUpdate ? 'Завантаження ZIP' : 'Завантаження'}:{' '}
+                                    {updater.downloadPercent}%
                                 </p>
                             </div>
                         )}
@@ -315,11 +328,22 @@ function Settings({ updater }) {
                             >
                                 Перевірити оновлення
                             </button>
-                            {updater.manualMacUpdate && updater.phase === 'available' && updater.onOpenMacRelease ? (
-                                <button type="button" className="btn btn-primary" onClick={updater.onOpenMacRelease}>
-                                    Завантажити з GitHub (v{updater.remoteVersion})
-                                </button>
-                            ) : null}
+                            {updater.manualMacUpdate && updater.phase === 'available' && (
+                                <>
+                                    <button type="button" className="btn btn-primary" onClick={updater.onDownload}>
+                                        Завантажити оновлення (ZIP)
+                                    </button>
+                                    {updater.onOpenMacRelease ? (
+                                        <button
+                                            type="button"
+                                            className="btn btn-secondary"
+                                            onClick={updater.onOpenMacRelease}
+                                        >
+                                            Відкрити сторінку релізу
+                                        </button>
+                                    ) : null}
+                                </>
+                            )}
                             {!updater.manualMacUpdate && updater.phase === 'available' && (
                                 <button type="button" className="btn btn-secondary" onClick={updater.onDownload}>
                                     Завантажити оновлення

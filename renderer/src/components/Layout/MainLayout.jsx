@@ -37,6 +37,8 @@ function MainLayout() {
     const [updaterError, setUpdaterError] = useState('');
     const [upToDateHint, setUpToDateHint] = useState('');
     const [downloadPercent, setDownloadPercent] = useState(0);
+    const [remoteReleaseNotes, setRemoteReleaseNotes] = useState('');
+    const [macPostDownloadHint, setMacPostDownloadHint] = useState('');
 
     const apiService = useMemo(() => {
         return client ? new ApiService(client) : null;
@@ -105,22 +107,37 @@ function MainLayout() {
             switch (ev.type) {
                 case 'checking':
                     setUpdaterPhase('checking');
+                    setRemoteReleaseNotes('');
+                    setMacPostDownloadHint('');
                     break;
                 case 'available':
                     setUpdaterPhase('available');
                     setRemoteVersion(ev.version);
+                    setRemoteReleaseNotes('');
                     setDownloadPercent(0);
                     showNotification({
                         type: 'info',
                         title: 'Доступне оновлення',
-                        message: isMacUpdaterRef.current
-                            ? `Версія ${ev.version}. На macOS автооновлення недоступне — відкрийте Налаштування та завантажте .dmg з GitHub.`
-                            : `Версія ${ev.version}. У налаштуваннях натисніть «Завантажити оновлення».`
+                        message: `Версія ${ev.version}. У налаштуваннях натисніть «Завантажити оновлення».`
+                    });
+                    break;
+                case 'mac-update-available':
+                    setUpdaterPhase('available');
+                    setRemoteVersion(ev.version);
+                    setRemoteReleaseNotes(
+                        typeof ev.notes === 'string' ? ev.notes : ''
+                    );
+                    setDownloadPercent(0);
+                    showNotification({
+                        type: 'info',
+                        title: 'Доступне оновлення',
+                        message: `Версія ${ev.version}. У налаштуваннях завантажте ZIP і оновіть застосунок вручну.`
                     });
                     break;
                 case 'not-available':
                     setUpdaterPhase('idle');
                     setRemoteVersion(null);
+                    setRemoteReleaseNotes('');
                     if (expectingManualUpdaterResultRef.current) {
                         setUpToDateHint('У вас встановлена остання версія.');
                         expectingManualUpdaterResultRef.current = false;
@@ -138,6 +155,17 @@ function MainLayout() {
                 case 'downloaded':
                     setUpdaterPhase('ready');
                     setDownloadPercent(100);
+                    if (isMacUpdaterRef.current) {
+                        if (ev.openPathFailed && ev.path) {
+                            setMacPostDownloadHint(
+                                `ZIP збережено: ${ev.path}. Відкрийте файл у Finder вручну.`
+                            );
+                        } else {
+                            setMacPostDownloadHint(
+                                'ZIP збережено та відкрито. Розпакуйте архів і перетягніть DMarket Bot у Програми, замінивши стару версію.'
+                            );
+                        }
+                    }
                     break;
                 default:
                     break;
@@ -150,6 +178,7 @@ function MainLayout() {
         if (!window.electronAPI?.updater) return;
         setUpdaterError('');
         setUpToDateHint('');
+        setMacPostDownloadHint('');
         expectingManualUpdaterResultRef.current = true;
         const result = await window.electronAPI.updater.check();
         if (!result.ok) {
@@ -165,6 +194,7 @@ function MainLayout() {
     const handleUpdaterDownload = async () => {
         if (!window.electronAPI?.updater) return;
         setUpdaterError('');
+        setMacPostDownloadHint('');
         const result = await window.electronAPI.updater.download();
         if (!result.ok && result.error) {
             setUpdaterError(result.error);
@@ -197,8 +227,10 @@ function MainLayout() {
                   appVersion,
                   phase: updaterPhase,
                   remoteVersion,
+                  remoteReleaseNotes,
                   error: updaterError,
                   upToDateHint,
+                  macPostDownloadHint,
                   downloadPercent,
                   manualMacUpdate: window.electronAPI?.platform === 'darwin',
                   onOpenMacRelease: handleOpenMacRelease,
