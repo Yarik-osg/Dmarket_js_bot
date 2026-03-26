@@ -355,18 +355,6 @@ function Settings({ updater }) {
                                 </button>
                             )}
                         </div>
-                        {updater.manualMacUpdate && updater.onOpenMacReleasesIndex ? (
-                            <p className="settings-description settings-mac-release-link-hint" style={{ marginTop: 16, marginBottom: 0 }}>
-                                Усі релізи на GitHub:{' '}
-                                <button
-                                    type="button"
-                                    className="settings-inline-link"
-                                    onClick={() => updater.onOpenMacReleasesIndex()}
-                                >
-                                    {GITHUB_RELEASES_INDEX}
-                                </button>
-                            </p>
-                        ) : null}
                     </div>
                 )}
 
