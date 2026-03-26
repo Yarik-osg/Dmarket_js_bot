@@ -18,7 +18,7 @@
   "build": {
     "appId": "com.github.yarik-osg.dmarket-bot",
     "productName": "DMarket Bot",
-    "productFilename": "DMarket-Bot",
+    "executableName": "DMarket-Bot",
     "directories": {
       "output": "dist-electron"
     },
