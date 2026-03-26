@@ -13,6 +13,11 @@ import Analytics from '../Analytics.jsx';
 import Notifications from '../Notifications.jsx';
 import AuthScreen from '../AuthScreen.jsx';
 import '../../styles/MainLayout.css';
+import {
+    GITHUB_RELEASES_INDEX,
+    GITHUB_RELEASES_LATEST,
+    githubReleaseTagUrl
+} from '../../constants/githubRelease.js';
 
 function MainLayout() {
     const { isAuthenticated, client } = useAuth();
@@ -24,6 +29,7 @@ function MainLayout() {
     const transactionMonitorRef = useRef(null);
     const hasLoadedInitialTransactions = useRef(false);
     const expectingManualUpdaterResultRef = useRef(false);
+    const isMacUpdaterRef = useRef(false);
 
     const [appVersion, setAppVersion] = useState('');
     const [updaterPhase, setUpdaterPhase] = useState('idle');
@@ -88,6 +94,10 @@ function MainLayout() {
     }, [apiService, isAuthenticated, addTransaction, showNotification]);
 
     useEffect(() => {
+        isMacUpdaterRef.current = window.electronAPI?.platform === 'darwin';
+    }, []);
+
+    useEffect(() => {
         if (!window.electronAPI?.updater) return undefined;
         window.electronAPI.updater.getVersion().then(setAppVersion);
         const unsubscribe = window.electronAPI.updater.onEvent((ev) => {
@@ -103,7 +113,9 @@ function MainLayout() {
                     showNotification({
                         type: 'info',
                         title: 'Доступне оновлення',
-                        message: `Версія ${ev.version}. У налаштуваннях натисніть «Завантажити оновлення».`
+                        message: isMacUpdaterRef.current
+                            ? `Версія ${ev.version}. На macOS автооновлення недоступне — відкрийте Налаштування та завантажте .dmg з GitHub.`
+                            : `Версія ${ev.version}. У налаштуваннях натисніть «Завантажити оновлення».`
                     });
                     break;
                 case 'not-available':
@@ -164,6 +176,21 @@ function MainLayout() {
         window.electronAPI?.updater?.quitAndInstall();
     };
 
+    const handleOpenMacRelease = async () => {
+        const url = remoteVersion ? githubReleaseTagUrl(remoteVersion) : GITHUB_RELEASES_LATEST;
+        const res = await window.electronAPI?.openExternal?.(url);
+        if (res && !res.ok) {
+            setUpdaterError('Не вдалося відкрити браузер. Спробуйте посилання вручну.');
+        }
+    };
+
+    const handleOpenMacReleasesIndex = async () => {
+        const res = await window.electronAPI?.openExternal?.(GITHUB_RELEASES_INDEX);
+        if (res && !res.ok) {
+            setUpdaterError('Не вдалося відкрити браузер. Спробуйте посилання вручну.');
+        }
+    };
+
     const updaterPanel =
         window.electronAPI?.updater
             ? {
@@ -173,6 +200,9 @@ function MainLayout() {
                   error: updaterError,
                   upToDateHint,
                   downloadPercent,
+                  manualMacUpdate: window.electronAPI?.platform === 'darwin',
+                  onOpenMacRelease: handleOpenMacRelease,
+                  onOpenMacReleasesIndex: handleOpenMacReleasesIndex,
                   onCheck: handleUpdaterCheck,
                   onDownload: handleUpdaterDownload,
                   onInstall: handleUpdaterQuitAndInstall

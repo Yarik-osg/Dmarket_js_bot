@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain } from 'electron';
+import { app, BrowserWindow, ipcMain, shell } from 'electron';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 import Store from 'electron-store';
@@ -36,6 +36,18 @@ ipcMain.handle('store-has', (event, key) => {
     return store.has(key);
 });
 
+ipcMain.handle('shell-open-external', async (event, url) => {
+    if (typeof url !== 'string' || !/^https:\/\//i.test(url)) {
+        return { ok: false, error: 'invalid-url' };
+    }
+    try {
+        await shell.openExternal(url);
+        return { ok: true };
+    } catch (e) {
+        return { ok: false, error: e?.message || String(e) };
+    }
+});
+
 function sendUpdaterEvent(payload) {
     if (mainWindow && !mainWindow.isDestroyed()) {
         mainWindow.webContents.send('updater-event', payload);
@@ -49,7 +61,10 @@ function setupAutoUpdater() {
     autoUpdaterListenersAttached = true;
 
     autoUpdater.autoDownload = false;
-    autoUpdater.autoInstallOnAppQuit = true;
+    // macOS (Squirrel.Mac): при true кнопка «Встановити» може мовчки не спрацювати, якщо
+    // внутрішній checkForUpdates після завантаження не завершився — quitAndInstall тоді
+    // не викликає повторний checkForUpdates (див. MacUpdater.quitAndInstall у electron-updater).
+    autoUpdater.autoInstallOnAppQuit = process.platform !== 'darwin';
 
     autoUpdater.on('checking-for-update', () => {
         sendUpdaterEvent({ type: 'checking' });
@@ -101,6 +116,9 @@ ipcMain.handle('updater-download', async () => {
     if (!app.isPackaged) {
         return { ok: false, reason: 'dev' };
     }
+    if (process.platform === 'darwin') {
+        return { ok: false, error: 'mac-manual-update' };
+    }
     try {
         await autoUpdater.downloadUpdate();
         return { ok: true };
@@ -110,7 +128,7 @@ ipcMain.handle('updater-download', async () => {
 });
 
 ipcMain.handle('updater-quit-install', () => {
-    if (!app.isPackaged) return;
+    if (!app.isPackaged || process.platform === 'darwin') return;
     autoUpdater.quitAndInstall(false, true);
 });
 

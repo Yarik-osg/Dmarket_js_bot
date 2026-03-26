@@ -3,6 +3,8 @@ const { contextBridge, ipcRenderer } = require('electron');
 // Expose protected methods that allow the renderer process to use
 // IPC to communicate with main process for storage
 contextBridge.exposeInMainWorld('electronAPI', {
+    platform: process.platform,
+    openExternal: (url) => ipcRenderer.invoke('shell-open-external', url),
     // Storage methods via IPC
     store: {
         get: (key) => {

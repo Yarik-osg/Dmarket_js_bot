@@ -3,6 +3,7 @@ import { useAuth } from '../contexts/AuthContext.jsx';
 import { useLogs } from '../contexts/LogsContext.jsx';
 import { showConfirmModal } from '../utils/modal.js';
 import { getReleaseNotesForVersion } from '../data/releaseNotes.js';
+import { GITHUB_RELEASES_INDEX } from '../constants/githubRelease.js';
 import '../styles/Settings.css';
 
 function Settings({ updater }) {
@@ -253,6 +254,13 @@ function Settings({ updater }) {
                 {updater && (
                     <div className="settings-section">
                         <h2 className="settings-section-title">Оновлення додатку</h2>
+                        {updater.manualMacUpdate ? (
+                            <div className="settings-mac-update-note" role="note">
+                                <strong>macOS:</strong> автооновлення в застосунку недоступне (для нього потрібен платний
+                                підпис і нотаризація Apple). Коли з’явиться нова версія, завантажте{' '}
+                                <strong>.dmg</strong> з GitHub і встановіть поверх старої.
+                            </div>
+                        ) : null}
                         {updaterReleaseNotes.length > 0 && (
                             <details className="settings-changelog-details">
                                 <summary className="settings-changelog-summary">
@@ -284,7 +292,7 @@ function Settings({ updater }) {
                             </p>
                         )}
 
-                        {updater.phase === 'downloading' && (
+                        {!updater.manualMacUpdate && updater.phase === 'downloading' && (
                             <div className="settings-update-progress-wrap">
                                 <div className="settings-update-progress">
                                     <div
@@ -307,17 +315,34 @@ function Settings({ updater }) {
                             >
                                 Перевірити оновлення
                             </button>
-                            {updater.phase === 'available' && (
+                            {updater.manualMacUpdate && updater.phase === 'available' && updater.onOpenMacRelease ? (
+                                <button type="button" className="btn btn-primary" onClick={updater.onOpenMacRelease}>
+                                    Завантажити з GitHub (v{updater.remoteVersion})
+                                </button>
+                            ) : null}
+                            {!updater.manualMacUpdate && updater.phase === 'available' && (
                                 <button type="button" className="btn btn-secondary" onClick={updater.onDownload}>
                                     Завантажити оновлення
                                 </button>
                             )}
-                            {updater.phase === 'ready' && (
+                            {!updater.manualMacUpdate && updater.phase === 'ready' && (
                                 <button type="button" className="btn btn-primary" onClick={updater.onInstall}>
                                     Встановити та перезапустити
                                 </button>
                             )}
                         </div>
+                        {updater.manualMacUpdate && updater.onOpenMacReleasesIndex ? (
+                            <p className="settings-description settings-mac-release-link-hint" style={{ marginTop: 16, marginBottom: 0 }}>
+                                Усі релізи на GitHub:{' '}
+                                <button
+                                    type="button"
+                                    className="settings-inline-link"
+                                    onClick={() => updater.onOpenMacReleasesIndex()}
+                                >
+                                    {GITHUB_RELEASES_INDEX}
+                                </button>
+                            </p>
+                        ) : null}
                     </div>
                 )}
 
