@@ -244,43 +244,71 @@ class ApiService {
         return await this.client.call('GET', path, finalParams);
     }
 
-    // Marketplace API - Create Offers
+    // Marketplace API - Create Offers (v2 batch)
+    // POST /marketplace-api/v2/offers:batchCreate
+    // Body: { requests: [{ assetId: string, priceCents: number }] }
     async createOffer(offersData) {
-        const path = '/marketplace-api/v1/user-offers/create';
-        // Request body format:
-        // {
-        //   "Offers": [
-        //     {
-        //       "AssetID": "string",
-        //       "Price": {
-        //         "Currency": "string",
-        //         "Amount": 0.1  // Decimal number in USD (0.5 = 50 cents)
-        //       }
-        //     }
-        //   ]
-        // }
-        return await this.client.call('POST', path, offersData);
+        const path = '/marketplace-api/v2/offers:batchCreate';
+        let body = offersData;
+
+        // Legacy v1 shape from older clients: { Offers: [{ AssetID, Price: { Amount, Currency } }] }
+        if (offersData?.Offers && !offersData?.requests) {
+            body = {
+                requests: offersData.Offers.map((o) => {
+                    const amount = o.Price?.Amount;
+                    const dollars =
+                        typeof amount === 'number'
+                            ? amount
+                            : parseFloat(String(amount || 0)) || 0;
+                    return {
+                        assetId: o.AssetID || o.assetId,
+                        priceCents: Math.round(dollars * 100)
+                    };
+                })
+            };
+        }
+
+        return await this.client.call('POST', path, body);
     }
 
-    // Marketplace API - Update Offer
-    async updateOffer(offerId, assetId, offerData) {
-        const path = '/marketplace-api/v1/user-offers/edit';
-        // Include offerId in the request body
-        const requestBody = { Offers: [{ "OfferID": offerId, "AssetID": assetId, ...offerData }] };
-        console.log("inside update offer", requestBody);
+    // Marketplace API - Update Offer (v2 batch)
+    // POST /marketplace-api/v2/offers:batchUpdate
+    // Body: { requests: [{ offerId: string, priceCents: number }] }
+    // offerData: { Price: { Amount: number (USD dollars), Currency } } or { priceCents: number }
+    async updateOffer(offerId, _assetId, offerData) {
+        const path = '/marketplace-api/v2/offers:batchUpdate';
+
+        if (!offerId) {
+            throw new Error('offerId is required to update an offer');
+        }
+
+        let priceCents;
+        if (offerData?.priceCents !== undefined && offerData?.priceCents !== null) {
+            priceCents = Math.round(Number(offerData.priceCents));
+        } else if (offerData?.Price?.Amount !== undefined && offerData?.Price?.Amount !== null) {
+            const amount = offerData.Price.Amount;
+            const dollars =
+                typeof amount === 'number' ? amount : parseFloat(String(amount)) || 0;
+            priceCents = Math.round(dollars * 100);
+        } else {
+            throw new Error('priceCents or Price.Amount is required to update an offer');
+        }
+
+        const requestBody = {
+            requests: [{ offerId: String(offerId), priceCents }]
+        };
+
+        console.log('inside update offer', requestBody);
         const response = await this.client.call('POST', path, requestBody);
-        
+
         console.log('updateOffer response:', JSON.stringify(response, null, 2));
-        
-        // Check for errors in response even if status is 200 OK
-        // Response structure: { Result: [{ Error: { Code, Message }, Successful: false, ... }] }
+
+        // Legacy v1-style body: { Result: [...] }
         if (response && response.Result && Array.isArray(response.Result)) {
             for (const resultItem of response.Result) {
-                // Check if resultItem is an array (nested structure)
                 const items = Array.isArray(resultItem) ? resultItem : [resultItem];
-                
+
                 for (const item of items) {
-                    // Check for Error object or Successful: false
                     if (item.Error || item.Successful === false) {
                         const errorCode = item.Error?.Code || item.Code || 'UnknownError';
                         const errorMessage = item.Error?.Message || item.Message || 'Unknown error';
@@ -293,63 +321,52 @@ class ApiService {
                 }
             }
         }
-        
+
+        // v2 batch: per-request errors (common patterns)
+        const batchResults = response?.results || response?.Requests || response?.requests;
+        if (Array.isArray(batchResults)) {
+            for (const item of batchResults) {
+                if (item?.error || item?.Error || item?.successful === false || item?.Successful === false) {
+                    const errorCode = item.error?.code || item.Error?.Code || item.code || 'UnknownError';
+                    const errorMessage =
+                        item.error?.message ||
+                        item.Error?.Message ||
+                        item.message ||
+                        'Unknown error';
+                    const error = new Error(errorMessage);
+                    error.errorCode = errorCode;
+                    error.result = item;
+                    error.response = response;
+                    throw error;
+                }
+            }
+        }
+
         return response;
     }
 
-    // Marketplace API - Delete Offers
+    // Marketplace API - Delete Offers (v2 batch)
+    // POST /marketplace-api/v2/offers:batchDelete
+    // Body: { requests: [{ offerId: string }] }
     async deleteOffer(offer) {
-        const path = '/exchange/v1/offers';
-        // Request body format according to API documentation:
-        // {
-        //   "force": true,
-        //   "objects": [
-        //     {
-        //       "itemId": "string",
-        //       "offerId": "string",
-        //       "price": {
-        //         "amount": "string",
-        //         "currency": "string"
-        //       }
-        //     }
-        //   ]
-        // }
-        const itemId = offer.itemId;
-        const offerId = offer.extra?.offerId;
-        const price = offer.price || {};
-        
-        // Format price amount - convert from cents (string) to decimal USD format
-        // API expects: 0.5 = 50 cents, so we need to convert "5000" (cents) to "50.00" (dollars)
-        let priceAmount = price.amount || price.USD || '0';
-        
-        // If price is a string in cents, convert to decimal dollars
-        if (typeof priceAmount === 'string' && priceAmount.length > 0) {
-            const cents = parseFloat(priceAmount);
-            if (!isNaN(cents)) {
-                // Convert cents to dollars: 5000 -> 50.00
-                priceAmount = (cents / 100).toFixed(2);
-            }
-        } else if (typeof priceAmount === 'number') {
-            // If already a number, assume it's in cents and convert to dollars
-            priceAmount = (priceAmount / 100).toFixed(2);
+        const path = '/marketplace-api/v2/offers:batchDelete';
+        const offerId =
+            offer?.extra?.offerId ||
+            offer?.offerId ||
+            offer?.instantOfferId ||
+            offer?.itemId;
+
+        if (!offerId) {
+            throw new Error('offerId is required to delete an offer');
         }
-        
+
         const requestBody = {
-            force: true,
-            objects: [
-                {
-                    itemId: itemId,
-                    offerId: offerId,
-                    price: {
-                        amount: priceAmount.toString(),
-                        currency: price.currency || 'USD'
-                    }
-                }
-            ]
+            requests: [{ offerId: String(offerId) }]
         };
+
         console.log('delete offer', offer);
         console.log('delete offer:', requestBody);
-        return await this.client.call('DELETE', path, requestBody);
+        return await this.client.call('POST', path, requestBody);
     }
 }
 

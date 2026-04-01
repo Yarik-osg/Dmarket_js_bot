@@ -107,18 +107,16 @@ function OfferForm({ onClose, onSave }) {
         setError(null);
 
         try {
-            // Convert prices from dollars (string) to decimal number
-            // API expects Amount as decimal (0.5 = 50 cents)
-            const offers = selectedItems.map(item => ({
-                AssetID: item.assetId,
-                Price: {
-                    Currency: 'USD',
-                    Amount: parseFloat(item.price) || 0.01
-                }
-            }));
-
+            // v2 batchCreate: price in whole cents (USD)
             const requestBody = {
-                Offers: offers
+                requests: selectedItems.map((item) => {
+                    const dollars = parseFloat(item.price);
+                    const safeDollars = !Number.isNaN(dollars) && dollars > 0 ? dollars : 0.01;
+                    return {
+                        assetId: item.assetId,
+                        priceCents: Math.round(safeDollars * 100)
+                    };
+                })
             };
 
             console.log('Creating offers:', requestBody);
