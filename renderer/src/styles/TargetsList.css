@@ -272,8 +272,32 @@
 
 .target-item {
     display: flex;
-    align-items: center;
+    align-items: flex-start;
+    gap: 12px;
+    min-width: 0;
+}
+
+.target-item-thumb {
+    width: 48px;
+    height: 48px;
+    object-fit: cover;
+    border-radius: var(--radius-md);
+    flex-shrink: 0;
+    border: 1px solid var(--border-color);
+    background: var(--bg-tertiary);
+}
+
+.target-item-inner {
+    display: flex;
+    align-items: flex-start;
     gap: 10px;
+    flex: 1;
+    min-width: 0;
+}
+
+.target-item-title-text {
+    line-height: 1.4;
+    word-break: break-word;
 }
 
 .active-target-status {

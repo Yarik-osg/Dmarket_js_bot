@@ -17,6 +17,67 @@ import {
 } from 'react-icons/ri';
 import '../styles/OffersList.css';
 
+function getOfferImageUrl(offer) {
+    return (
+        offer?.image ||
+        offer?.Image ||
+        offer?.extra?.image ||
+        offer?.thumbnail ||
+        null
+    );
+}
+
+/** Чи підходить лістинг маркету під офер за float і phase (якщо на офері задані). Порожні поля на лістингу = «будь-який». */
+function marketItemMatchesOfferWearAndPhase(offer, item) {
+    const offerFloatValue = offer?.extra?.floatPartValue ?? offer?.attributes?.floatPartValue;
+    if (offerFloatValue !== undefined && offerFloatValue !== null && String(offerFloatValue).trim() !== '') {
+        const itemFloatValue = item?.attributes?.floatPartValue ?? item?.extra?.floatPartValue;
+        const itemFloatStr = itemFloatValue === undefined || itemFloatValue === null ? '' : String(itemFloatValue);
+        if (itemFloatStr !== '' && itemFloatStr !== String(offerFloatValue)) {
+            return false;
+        }
+    }
+
+    const offerPhase = offer?.attributes?.phase ?? offer?.extra?.phase;
+    if (offerPhase !== undefined && offerPhase !== null && String(offerPhase).trim() !== '') {
+        const offerPhaseNorm = String(offerPhase).trim().toLowerCase();
+        const rawItemPhase = item?.attributes?.phase ?? item?.extra?.phase;
+        const itemPhaseStr =
+            rawItemPhase !== undefined && rawItemPhase !== null && String(rawItemPhase).trim() !== ''
+                ? String(rawItemPhase).trim().toLowerCase()
+                : '';
+        if (itemPhaseStr !== '' && itemPhaseStr !== offerPhaseNorm) {
+            return false;
+        }
+    }
+
+    return true;
+}
+
+function OfferItemTitleCell({ offer, title }) {
+    const [imgFailed, setImgFailed] = useState(false);
+    const imageUrl = getOfferImageUrl(offer);
+    const showImg = Boolean(imageUrl) && !imgFailed;
+
+    return (
+        <div className="offer-item">
+            {showImg ? (
+                <img
+                    src={imageUrl}
+                    alt=""
+                    className="offer-item-thumb"
+                    loading="lazy"
+                    decoding="async"
+                    onError={() => setImgFailed(true)}
+                />
+            ) : null}
+            <span className="offer-item-title-text" title={title}>
+                {title}
+            </span>
+        </div>
+    );
+}
+
 function OffersList({ isAutoUpdatingEnabled = false, onToggleAutoUpdate }) {
     const { t } = useLocale();
     const { client } = useAuth();
@@ -274,20 +335,9 @@ function OffersList({ isAutoUpdatingEnabled = false, onToggleAutoUpdate }) {
                        
                         // API returns { objects: [...] } structure
                         if (marketData?.objects && marketData.objects.length > 0) {
-                            // Get offer's floatPartValue for filtering (if available)
-                            const offerFloatValue = offer.extra?.floatPartValue || offer.attributes?.floatPartValue;
-
-                            // Filter items by floatPartValue: match offer's floatPartValue or 'any' (empty string)
-                            const filteredItems = marketData.objects.filter(item => {
-                                if (!offerFloatValue || offerFloatValue === '') {
-                                    // If offer has no float filter, accept all items
-                                    return true;
-                                }
-                                const itemFloatValue = item.attributes?.floatPartValue || item.extra?.floatPartValue;
-                                // Accept if floatPartValue matches offer's value or is empty (any)
-                                return itemFloatValue === '' || 
-                                       itemFloatValue === offerFloatValue;
-                            });
+                            const filteredItems = marketData.objects.filter((item) =>
+                                marketItemMatchesOfferWearAndPhase(offer, item)
+                            );
                             // Find lowest price (cheapest sell order)
                             const itemPrices = filteredItems
                                 .map(item => {
@@ -547,17 +597,9 @@ function OffersList({ isAutoUpdatingEnabled = false, onToggleAutoUpdate }) {
                     });
 
                     if (marketData?.objects && marketData.objects.length > 0) {
-                        // Get offer's floatPartValue for filtering
-                        const offerFloatValue = offer.extra?.floatPartValue || offer.attributes?.floatPartValue;
-                        
-                        // Filter items by floatPartValue
-                        const filteredItems = marketData.objects.filter(item => {
-                            if (!offerFloatValue || offerFloatValue === '') {
-                                return true;
-                            }
-                            const itemFloatValue = item.attributes?.floatPartValue || item.extra?.floatPartValue;
-                            return itemFloatValue === '' || itemFloatValue === offerFloatValue;
-                        });
+                        const filteredItems = marketData.objects.filter((item) =>
+                            marketItemMatchesOfferWearAndPhase(offer, item)
+                        );
 
                         // Convert minPrice to cents for comparison
                         const minPriceCents = parseFloat(minPrice) * 100;
@@ -1080,7 +1122,7 @@ function OffersList({ isAutoUpdatingEnabled = false, onToggleAutoUpdate }) {
                     <tbody>
                         {filteredOffers.length === 0 ? (
                             <tr>
-                                <td colSpan="9" className="empty-state">
+                                <td colSpan="8" className="empty-state">
                                     {t('offers.empty')}
                                 </td>
                             </tr>
@@ -1107,9 +1149,7 @@ function OffersList({ isAutoUpdatingEnabled = false, onToggleAutoUpdate }) {
                                     <tr key={offerId || index}>
                                         <td>{index + 1}</td>
                                         <td>
-                                            <div className="offer-item">
-                                                {title}
-                                            </div>
+                                            <OfferItemTitleCell offer={offer} title={title} />
                                         </td>
                                         <td>
                                             {(() => {

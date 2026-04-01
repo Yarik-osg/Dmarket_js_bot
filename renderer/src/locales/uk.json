@@ -6,6 +6,7 @@
   "auth.login": "Увійти",
   "auth.error": "Помилка авторизації",
   "auth.loading": "Завантаження...",
+  "nav.welcome": "Вітаємо,",
   "nav.orders": "Замовлення",
   "nav.offers": "Пропозиції",
   "nav.settings": "Налаштування",

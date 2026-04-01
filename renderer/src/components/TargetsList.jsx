@@ -20,6 +20,84 @@ import {
 } from 'react-icons/ri';
 import '../styles/TargetsList.css';
 
+function getTargetImageUrl(target) {
+    return (
+        target?.image ||
+        target?.Image ||
+        target?.extra?.image ||
+        target?.thumbnail ||
+        null
+    );
+}
+
+function TargetItemTitleCell({
+    target,
+    title,
+    status,
+    floatPartValue,
+    floatRange,
+    phase,
+    paintSeed
+}) {
+    const [imgFailed, setImgFailed] = useState(false);
+    const imageUrl = getTargetImageUrl(target);
+    const showImg = Boolean(imageUrl) && !imgFailed;
+
+    return (
+        <div className="target-item">
+            {showImg ? (
+                <img
+                    src={imageUrl}
+                    alt=""
+                    className="target-item-thumb"
+                    loading="lazy"
+                    decoding="async"
+                    onError={() => setImgFailed(true)}
+                />
+            ) : null}
+            <div className="target-item-inner">
+                <span
+                    className={
+                        status === 'active' ? 'active-target-status' : 'inactive-target-status'
+                    }
+                >
+                    {status}
+                </span>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                    <span className="target-item-title-text" title={title}>
+                        {title}
+                    </span>
+                    {(floatPartValue !== 'N/A' ||
+                        phase ||
+                        (paintSeed && paintSeed !== 0)) && (
+                        <div
+                            style={{
+                                fontSize: '11px',
+                                color: '#888',
+                                display: 'flex',
+                                flexDirection: 'row',
+                                gap: '10px',
+                                flexWrap: 'wrap'
+                            }}
+                        >
+                            {floatPartValue !== 'N/A' && (
+                                <span>
+                                    Float: {floatPartValue}{' '}
+                                    {floatRange !== floatPartValue && `(${floatRange})`}
+                                </span>
+                            )}
+                            {phase && <span>Phase: {phase}</span>}
+                            {paintSeed && paintSeed !== 0 && (
+                                <span>Paint Seed: {paintSeed}</span>
+                            )}
+                        </div>
+                    )}
+                </div>
+            </div>
+        </div>
+    );
+}
+
 function TargetsList({ isAutoUpdatingEnabled = false, onToggleAutoUpdate }) {
     const { t } = useLocale();
     const { client } = useAuth();
@@ -1362,7 +1440,7 @@ function TargetsList({ isAutoUpdatingEnabled = false, onToggleAutoUpdate }) {
                     <tbody>
                         {filteredTargets.length === 0 ? (
                             <tr>
-                                <td colSpan="8" className="empty-state">
+                                <td colSpan="7" className="empty-state">
                                     {t('targets.empty')}
                                 </td>
                             </tr>
@@ -1389,27 +1467,15 @@ function TargetsList({ isAutoUpdatingEnabled = false, onToggleAutoUpdate }) {
                                     <tr key={targetId || index}>
                                         <td>{index + 1}</td>
                                         <td>
-                                            <div className="target-item">
-                                                <span className={status === 'active' ? 'active-target-status' : 'inactive-target-status'}>{status}</span>
-                                                <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                                                    <span>{title}</span>
-                                                    {(floatPartValue !== 'N/A' || phase || (paintSeed && paintSeed !== 0)) && (
-                                                        <div style={{ fontSize: '11px', color: '#888', display: 'flex', flexDirection: 'row', gap: '10px', flexWrap: 'wrap' }}>
-                                                            {floatPartValue !== 'N/A' && (
-                                                                <span>
-                                                                    Float: {floatPartValue} {floatRange !== floatPartValue && `(${floatRange})`}
-                                                                </span>
-                                                            )}
-                                                            {phase && (
-                                                                <span>Phase: {phase}</span>
-                                                            )}
-                                                            {paintSeed && paintSeed !== 0 && (
-                                                                <span>Paint Seed: {paintSeed}</span>
-                                                            )}
-                                                        </div>
-                                                    )}
-                                                </div>
-                                            </div>
+                                            <TargetItemTitleCell
+                                                target={target}
+                                                title={title}
+                                                status={status}
+                                                floatPartValue={floatPartValue}
+                                                floatRange={floatRange}
+                                                phase={phase}
+                                                paintSeed={paintSeed}
+                                            />
                                         </td>
                                         <td>
                                             <span 

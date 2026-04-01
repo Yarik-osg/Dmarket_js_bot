@@ -224,6 +224,12 @@ class ApiService {
         return await this.client.call('GET', path, params);
     }
 
+    /** GET /account/v1/user — профіль (username, email, imageUrl, steamAccount, …) */
+    async getAccountUser() {
+        const path = '/account/v1/user';
+        return await this.client.call('GET', path);
+    }
+
     // Exchange API - Transaction History
     async getTransactionHistory(params = {}) {
         const path = '/exchange/v1/history';
