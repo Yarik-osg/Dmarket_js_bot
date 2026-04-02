@@ -12,9 +12,13 @@ import {
     RiSettings3Line, 
     RiFileListLine,
     RiPlayCircleLine,
-    RiPauseCircleLine
+    RiPauseCircleLine,
+    RiArrowUpSLine,
+    RiArrowDownSLine
 } from 'react-icons/ri';
 import '../../styles/Sidebar.css';
+
+const SIDEBAR_PROFILE_COLLAPSED_KEY = 'sidebarProfileCollapsed';
 
 function Sidebar({ activeTab, onTabChange, isTargetsParsingEnabled, isOffersParsingEnabled, onToggleTargetsParsing, onToggleOffersParsing }) {
     const { t } = useLocale();
@@ -23,6 +27,15 @@ function Sidebar({ activeTab, onTabChange, isTargetsParsingEnabled, isOffersPars
     const [accountUser, setAccountUser] = useState(null);
     const [accountUserLoading, setAccountUserLoading] = useState(true);
     const [avatarFailed, setAvatarFailed] = useState(false);
+    const [profileCollapsed, setProfileCollapsed] = useState(() => {
+        try {
+            const v = localStorage.getItem(SIDEBAR_PROFILE_COLLAPSED_KEY);
+            if (v === '0') return false;
+            return true;
+        } catch {
+            return true;
+        }
+    });
 
     const apiService = useMemo(
         () => (client ? new ApiService(client) : null),
@@ -67,6 +80,18 @@ function Sidebar({ activeTab, onTabChange, isTargetsParsingEnabled, isOffersPars
         (accountUser?.imageUrl || accountUser?.steamAccount?.icon || '');
     const email = accountUser?.email || '';
 
+    const toggleProfileCollapsed = () => {
+        setProfileCollapsed((prev) => {
+            const next = !prev;
+            try {
+                localStorage.setItem(SIDEBAR_PROFILE_COLLAPSED_KEY, next ? '1' : '0');
+            } catch {
+                /* ignore */
+            }
+            return next;
+        });
+    };
+
     const menuItems = [
         { id: 'orders', label: t('nav.orders'), icon: RiShoppingCart2Line },
         { id: 'offers', label: t('nav.offers'), icon: RiPriceTag3Line },
@@ -82,42 +107,67 @@ function Sidebar({ activeTab, onTabChange, isTargetsParsingEnabled, isOffersPars
                 <h2 className="sidebar-title">DMarket Bot</h2>
             </div>
             {client && (accountUserLoading || accountUser) && (
-                <div className="sidebar-welcome" aria-busy={accountUserLoading}>
-                    {accountUserLoading && !accountUser ? (
-                        <div className="sidebar-welcome-skeleton" />
-                    ) : accountUser ? (
-                        <>
-                            {avatarSrc ? (
-                                <img
-                                    src={avatarSrc}
-                                    alt=""
-                                    className="sidebar-welcome-avatar"
-                                    loading="lazy"
-                                    decoding="async"
-                                    onError={() => setAvatarFailed(true)}
-                                />
-                            ) : (
-                                <div className="sidebar-welcome-avatar sidebar-welcome-avatar-placeholder" />
-                            )}
-                            <div className="sidebar-welcome-text">
-                                <div className="sidebar-welcome-line">
-                                    <span className="sidebar-welcome-prefix">
-                                        {t('nav.welcome')}
-                                    </span>{' '}
-                                    {displayName ? (
-                                        <span className="sidebar-welcome-name" title={displayName}>
-                                            {displayName}
-                                        </span>
-                                    ) : null}
-                                </div>
-                                {email ? (
-                                    <div className="sidebar-welcome-email" title={email}>
-                                        {email}
+                <div
+                    className={`sidebar-profile-section${profileCollapsed ? ' sidebar-profile-section--collapsed' : ''}`}
+                >
+                    <button
+                        type="button"
+                        className="sidebar-profile-toggle"
+                        onClick={toggleProfileCollapsed}
+                        aria-expanded={!profileCollapsed}
+                        title={
+                            profileCollapsed ? t('nav.profileExpand') : t('nav.profileCollapse')
+                        }
+                    >
+                        <span className="sidebar-profile-toggle-label">{t('nav.profileSection')}</span>
+                        {profileCollapsed ? (
+                            <RiArrowDownSLine className="sidebar-profile-toggle-icon" aria-hidden />
+                        ) : (
+                            <RiArrowUpSLine className="sidebar-profile-toggle-icon" aria-hidden />
+                        )}
+                    </button>
+                    {!profileCollapsed && (
+                        <div className="sidebar-welcome" aria-busy={accountUserLoading}>
+                            {accountUserLoading && !accountUser ? (
+                                <div className="sidebar-welcome-skeleton" />
+                            ) : accountUser ? (
+                                <>
+                                    {avatarSrc ? (
+                                        <img
+                                            src={avatarSrc}
+                                            alt=""
+                                            className="sidebar-welcome-avatar"
+                                            loading="lazy"
+                                            decoding="async"
+                                            onError={() => setAvatarFailed(true)}
+                                        />
+                                    ) : (
+                                        <div className="sidebar-welcome-avatar sidebar-welcome-avatar-placeholder" />
+                                    )}
+                                    <div className="sidebar-welcome-text">
+                                        <div className="sidebar-welcome-line">
+                                            <span className="sidebar-welcome-prefix">
+                                                {t('nav.welcome')}
+                                            </span>{' '}
+                                            {displayName ? (
+                                                <span
+                                                    className="sidebar-welcome-name"
+                                                    title={displayName}
+                                                >
+                                                    {displayName}
+                                                </span>
+                                            ) : null}
+                                        </div>
+                                        {email ? (
+                                            <div className="sidebar-welcome-email" title={email}>
+                                                {email}
+                                            </div>
+                                        ) : null}
                                     </div>
-                                ) : null}
-                            </div>
-                        </>
-                    ) : null}
+                                </>
+                            ) : null}
+                        </div>
+                    )}
                 </div>
             )}
             <div className="sidebar-menu">

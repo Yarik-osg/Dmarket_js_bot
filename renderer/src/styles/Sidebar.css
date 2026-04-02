@@ -26,13 +26,71 @@
     opacity: 0.3;
 }
 
+.sidebar-profile-section {
+    border-bottom: 1px solid var(--border-color);
+}
+
+.sidebar-profile-section--collapsed .sidebar-profile-toggle {
+    border-bottom: none;
+}
+
+.sidebar-profile-toggle {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 10px 16px;
+    margin: 0;
+    background: transparent;
+    border: none;
+    border-bottom: 1px solid var(--border-color);
+    color: var(--text-secondary);
+    cursor: pointer;
+    font: inherit;
+    text-align: left;
+    transition: background 0.2s ease, color 0.2s ease;
+}
+
+.sidebar-profile-toggle:hover {
+    color: var(--text-primary);
+    background: var(--bg-hover);
+}
+
+.sidebar-profile-toggle-label {
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--text-tertiary);
+}
+
+.sidebar-profile-toggle:hover .sidebar-profile-toggle-label {
+    color: var(--text-secondary);
+}
+
+.sidebar-profile-toggle-icon {
+    font-size: 18px;
+    flex-shrink: 0;
+    color: var(--accent-color);
+}
+
 .sidebar-welcome {
     display: flex;
     align-items: flex-start;
     gap: 12px;
     padding: 16px 16px 12px;
-    border-bottom: 1px solid var(--border-color);
     min-height: 56px;
+    animation: sidebar-welcome-expand 0.2s ease-out;
+}
+
+@keyframes sidebar-welcome-expand {
+    from {
+        opacity: 0;
+    }
+    to {
+        opacity: 1;
+    }
 }
 
 .sidebar-welcome-skeleton {

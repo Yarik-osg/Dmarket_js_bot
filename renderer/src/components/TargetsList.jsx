@@ -5,6 +5,8 @@ import { useAuth } from '../contexts/AuthContext.jsx';
 import { useLogs } from '../contexts/LogsContext.jsx';
 import { ApiService } from '../services/apiService.js';
 import TargetForm from './TargetForm.jsx';
+import { SkinThumbWithHoverPreview } from './SkinThumbWithHoverPreview.jsx';
+import { DMarketProductLinkButton } from './DMarketProductLinkButton.jsx';
 import { showConfirmModal, showAlertModal } from '../utils/modal.js';
 import { 
     RiSearchLine, 
@@ -46,12 +48,11 @@ function TargetItemTitleCell({
     return (
         <div className="target-item">
             {showImg ? (
-                <img
+                <SkinThumbWithHoverPreview
                     src={imageUrl}
                     alt=""
-                    className="target-item-thumb"
+                    thumbClassName="target-item-thumb"
                     loading="lazy"
-                    decoding="async"
                     onError={() => setImgFailed(true)}
                 />
             ) : null}
@@ -64,9 +65,12 @@ function TargetItemTitleCell({
                     {status}
                 </span>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                    <span className="target-item-title-text" title={title}>
-                        {title}
-                    </span>
+                    <div className="target-item-title-row">
+                        <span className="target-item-title-text" title={title}>
+                            {title}
+                        </span>
+                        <DMarketProductLinkButton item={target} className="target-item-dmarket-btn" />
+                    </div>
                     {(floatPartValue !== 'N/A' ||
                         phase ||
                         (paintSeed && paintSeed !== 0)) && (

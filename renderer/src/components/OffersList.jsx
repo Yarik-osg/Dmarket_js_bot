@@ -6,6 +6,8 @@ import { useAnalytics } from '../contexts/AnalyticsContext.jsx';
 import { useNotifications } from '../contexts/NotificationContext.jsx';
 import { ApiService } from '../services/apiService.js';
 import OfferForm from './OfferForm.jsx';
+import { SkinThumbWithHoverPreview } from './SkinThumbWithHoverPreview.jsx';
+import { DMarketProductLinkButton } from './DMarketProductLinkButton.jsx';
 import { showConfirmModal, showAlertModal } from '../utils/modal.js';
 import { 
     RiSearchLine, 
@@ -62,18 +64,20 @@ function OfferItemTitleCell({ offer, title }) {
     return (
         <div className="offer-item">
             {showImg ? (
-                <img
+                <SkinThumbWithHoverPreview
                     src={imageUrl}
                     alt=""
-                    className="offer-item-thumb"
+                    thumbClassName="offer-item-thumb"
                     loading="lazy"
-                    decoding="async"
                     onError={() => setImgFailed(true)}
                 />
             ) : null}
-            <span className="offer-item-title-text" title={title}>
-                {title}
-            </span>
+            <div className="offer-item-title-row">
+                <span className="offer-item-title-text" title={title}>
+                    {title}
+                </span>
+                <DMarketProductLinkButton item={offer} className="offer-item-dmarket-btn" />
+            </div>
         </div>
     );
 }

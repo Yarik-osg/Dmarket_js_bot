@@ -128,6 +128,15 @@
     flex-shrink: 0;
     border: 1px solid var(--border-color);
     background: var(--bg-tertiary);
+    cursor: zoom-in;
+}
+
+.offer-item-title-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    flex: 1;
+    min-width: 0;
 }
 
 .offer-item-title-text {

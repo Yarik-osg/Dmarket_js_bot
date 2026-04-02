@@ -285,6 +285,7 @@
     flex-shrink: 0;
     border: 1px solid var(--border-color);
     background: var(--bg-tertiary);
+    cursor: zoom-in;
 }
 
 .target-item-inner {
@@ -295,7 +296,16 @@
     min-width: 0;
 }
 
+.target-item-title-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    min-width: 0;
+}
+
 .target-item-title-text {
+    flex: 1;
+    min-width: 0;
     line-height: 1.4;
     word-break: break-word;
 }
