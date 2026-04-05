@@ -1,16 +1,21 @@
-import React, { useState, useEffect, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { useAuth } from '../contexts/AuthContext.jsx';
 import { useNotifications } from '../contexts/NotificationContext.jsx';
+import { useLocale } from '../contexts/LocaleContext.jsx';
 import { ApiService } from '../services/apiService.js';
+import { sumOffersNetUsd } from '../utils/offerListingPrice.js';
 import { RiWallet3Line, RiRefreshLine } from 'react-icons/ri';
 import '../styles/BalanceDisplay.css';
 
 function BalanceDisplay() {
+    const { t } = useLocale();
     const { client } = useAuth();
     const { checkLowBalance } = useNotifications();
     const [balance, setBalance] = useState(null);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
+    const [listedNetUsd, setListedNetUsd] = useState(null);
+    const [listedError, setListedError] = useState(null);
     const loadingRef = useRef(false);
     const errorRef = useRef(null);
     const lastBalanceRef = useRef(null);
@@ -18,6 +23,31 @@ function BalanceDisplay() {
     const apiService = useMemo(() => {
         return client ? new ApiService(client) : null;
     }, [client]);
+
+    useEffect(() => {
+        if (!apiService) {
+            setListedNetUsd(null);
+            setListedError(null);
+        }
+    }, [apiService]);
+
+    const loadListedOffersNet = useCallback(async () => {
+        if (!apiService) return;
+        setListedError(null);
+        try {
+            const response = await apiService.getUserOffers({
+                currency: 'USD',
+                gameId: 'a8db',
+                limit: 100
+            });
+            const offersList = response?.objects?.filter((obj) => obj.type === 'offer') || [];
+            setListedNetUsd(sumOffersNetUsd(offersList));
+        } catch (err) {
+            console.error('Error loading offers for balance estimate:', err);
+            setListedError(err.message || 'error');
+            setListedNetUsd(null);
+        }
+    }, [apiService]);
 
     const loadBalance = async () => {
         if (!apiService || loadingRef.current) return;
@@ -58,18 +88,21 @@ function BalanceDisplay() {
     useEffect(() => {
         if (apiService) {
             loadBalance();
+            loadListedOffersNet();
             // Check balance every 5 minutes
             const interval = setInterval(() => {
                 loadBalance();
+                loadListedOffersNet();
             }, 5 * 60 * 1000);
             
             return () => clearInterval(interval);
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [apiService]);
+    }, [apiService, loadListedOffersNet]);
 
     const handleRefresh = () => {
         loadBalance();
+        loadListedOffersNet();
     };
 
     if (!client) return null;
@@ -101,11 +134,20 @@ function BalanceDisplay() {
         return '0.' + amount.padStart(2, '0');
     };
 
-    // API returns: { usd: "string", usdAvailableToWithdraw: "string", dmc: "string", dmcAvailableToWithdraw: "string" }
-    // All values are in cents (for USD) or dimoshi (for DMC) as strings
-    const usdTotal = balance?.usd || '0';
+    const parseUsdCents = (value) => {
+        const n = parseInt(String(value ?? '0'), 10);
+        return Number.isFinite(n) ? n : 0;
+    };
+
+    // API returns: { usd: "string", usdAvailableToWithdraw: "string", ... } — USD у центах (рядок)
     const usdAvailable = balance?.usdAvailableToWithdraw || '0';
     const usdFrozen = balance?.usdTradeProtected || '0';
+    const availableCents = parseUsdCents(usdAvailable);
+    const frozenCents = parseUsdCents(usdFrozen);
+    const walletDollars = (availableCents + frozenCents) / 100;
+
+    const grandWithOffersDollars =
+        listedNetUsd !== null && !listedError ? walletDollars + listedNetUsd : null;
 
     return (
         <div className="balance-display">
@@ -132,9 +174,30 @@ function BalanceDisplay() {
                 <span className="balance-label">Заморожено:</span>
                 <span className="balance-value frozen">${formatBalance(usdFrozen)}</span>
             </div>
+            <div className="balance-item listed-net">
+                <span
+                    className="balance-label"
+                    title={t('balance.listedNetHint')}
+                >
+                    {t('balance.listedNet')}:
+                </span>
+                <span className="balance-value listed">
+                    {listedError
+                        ? '—'
+                        : listedNetUsd === null
+                          ? '…'
+                          : `$${listedNetUsd.toFixed(2)}`}
+                </span>
+            </div>
             <div className="balance-item total">
                 <span className="balance-label">Всього:</span>
-                <span className="balance-value total">${formatBalance(String(Number(usdAvailable) + Number(usdFrozen)))}</span>
+                <span className="balance-value total">${walletDollars.toFixed(2)}</span>
+            </div>
+            <div className="balance-item">
+                <span className="balance-label">{t('balance.totalWithOffers')}:</span>
+                <span className="balance-value total">
+                    {grandWithOffersDollars === null ? '…' : `$${grandWithOffersDollars.toFixed(2)}`}
+                </span>
             </div>
         </div>
     );

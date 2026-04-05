@@ -2,6 +2,7 @@ import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { useAuth } from '../contexts/AuthContext.jsx';
 import { ApiService } from '../services/apiService.js';
 import { RiRefreshLine, RiSearchLine, RiInformationLine } from 'react-icons/ri';
+import { DMarketProductLinkButton } from './DMarketProductLinkButton.jsx';
 import '../styles/LiquidityAnalyzer.css';
 
 function LiquidityAnalyzer() {
@@ -493,6 +494,14 @@ function LiquidityAnalyzer() {
             
             for (let i = 0; i < itemsToAnalyze; i++) {
                 const item = uniqueItems[i];
+                const sampleListing = item.items?.[0];
+                const dmarketItem = {
+                    title: item.title,
+                    gameId: sampleListing?.gameId || sampleListing?.extra?.gameId || 'a8db',
+                    slug: sampleListing?.slug || sampleListing?.extra?.slug,
+                    extra: sampleListing?.extra,
+                    attributes: sampleListing?.attributes
+                };
                 setProgress({ current: i + 1, total: itemsToAnalyze });
                 
                 try {
@@ -926,6 +935,7 @@ function LiquidityAnalyzer() {
                         priceSpread: priceSpread,
                         priceSpreadPercent: priceSpreadPercent,
                         txDominance: txDominance,
+                        dmarketItem
                     });
                     
                     console.log(`Analyzed ${i + 1}/${itemsToAnalyze}: ${item.title}`);
@@ -969,7 +979,8 @@ function LiquidityAnalyzer() {
                         cleanPricesCount: 0,
                         volatilityWarning: false,
                         trendWarning: false,
-                        error: true
+                        error: true,
+                        dmarketItem
                     });
                 }
             }
@@ -1620,7 +1631,15 @@ function LiquidityAnalyzer() {
                                     </div>
                                 </div>
                                 
-                                <div className="card-title">{item.title}</div>
+                                <div className="card-title-row">
+                                    <div className="card-title">{item.title}</div>
+                                    {item.dmarketItem ? (
+                                        <DMarketProductLinkButton
+                                            item={item.dmarketItem}
+                                            className="liquidity-card-dmarket-btn"
+                                        />
+                                    ) : null}
+                                </div>
                                 
                                 {/* Основні метрики прибутковості */}
                                 <div className="profitability-section">

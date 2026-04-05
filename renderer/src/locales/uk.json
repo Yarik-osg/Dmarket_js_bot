@@ -1,5 +1,8 @@
 {
   "app.title": "DMarket Bot",
+  "balance.listedNet": "Офери на продаж",
+  "balance.listedNetHint": "Сума полів «без комісії» по активних лістингах (до 100 позицій, як у таблиці оферів). Орієнтовно.",
+  "balance.totalWithOffers": "Всього з оферами",
   "auth.title": "Авторизація",
   "auth.publicKey": "Публічний ключ",
   "auth.secretKey": "Секретний ключ",

@@ -6,62 +6,165 @@ const GAME_ID_TO_MARKET_PATH = {
 };
 
 /**
- * DMarket у шляху картки використовує wear як slug з дефісами (field-tested, factory-new),
- * а не пробіли — інакше часто 404 (наприклад field%20tested).
+ * Wear у сегменті URL на DMarket змішаний:
+ * — «Factory New», «Minimal Wear» → з пробілом: factory new, minimal wear (як у href на сайті);
+ * — Field-Tested, Well-Worn, Battle-Scarred → з дефісом: field-tested, well-worn, battle-scarred.
+ * Уніфікація всіх варіантів з API / назви.
  */
-    function normalizeExteriorForProductCard(exterior) {
-        if (exterior === undefined || exterior === null) return null;
-        const s = String(exterior)
-            .trim()
-            .toLowerCase()
-            .replace(/[\s_]+/g, '-')
-            .replace(/-+/g, '-')
-            .replace(/^-|-$/g, '');
-        return s || null;
-    }
+const WEAR_PATH_BY_KEY = {
+    'factory new': 'factory new',
+    'minimal wear': 'minimal wear',
+    'field tested': 'field-tested',
+    'well worn': 'well-worn',
+    'battle scarred': 'battle-scarred'
+};
+
+const WEAR_ABBR = {
+    fn: 'factory new',
+    mw: 'minimal wear',
+    ft: 'field-tested',
+    ww: 'well-worn',
+    bs: 'battle-scarred'
+};
+
+function wearKeyFromRaw(exterior) {
+    if (exterior === undefined || exterior === null) return '';
+    return String(exterior)
+        .trim()
+        .toLowerCase()
+        .replace(/[-_]+/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim();
+}
+
+/** Сегмент wear для path product-card (перед encodeURIComponent). */
+function formatExteriorForDMarketProductCardPath(exterior) {
+    if (exterior === undefined || exterior === null) return null;
+    const trimmed = String(exterior).trim();
+    if (!trimmed) return null;
+
+    const key = wearKeyFromRaw(trimmed);
+    if (!key) return null;
+
+    if (WEAR_PATH_BY_KEY[key]) return WEAR_PATH_BY_KEY[key];
+    if (WEAR_ABBR[key]) return WEAR_ABBR[key];
+
+    return null;
+}
+
+/** Для phase та інших slug-подібних рядків (дефіси, без спец-мапи wear). */
+function normalizeExteriorForProductCard(exterior) {
+    if (exterior === undefined || exterior === null) return null;
+    const s = String(exterior)
+        .trim()
+        .toLowerCase()
+        .replace(/[\s_]+/g, '-')
+        .replace(/-+/g, '-')
+        .replace(/^-|-$/g, '');
+    return s || null;
+}
 
 function exteriorFromTitle(title) {
     if (!title || typeof title !== 'string') return null;
     const m = title.match(/\(([^)]+)\)\s*$/);
     if (!m) return null;
-    return normalizeExteriorForProductCard(m[1]);
+    return (
+        formatExteriorForDMarketProductCardPath(m[1]) ||
+        normalizeExteriorForProductCard(m[1])
+    );
+}
+
+/** phase з API або з назви (Gamma Doppler Phase 3, phase-2, …) */
+function normalizePhaseForProductCard(phase) {
+    if (phase === undefined || phase === null) return null;
+    if (typeof phase === 'number' && Number.isFinite(phase)) {
+        return `phase-${Math.trunc(phase)}`;
+    }
+    const s = String(phase).trim();
+    if (!s) return null;
+    if (/^\d+$/.test(s)) return `phase-${s}`;
+    return normalizeExteriorForProductCard(s);
+}
+
+function phaseFromTitle(title) {
+    if (!title || typeof title !== 'string') return null;
+    const p1 = title.match(/\bphase\s*[-]?\s*(\d+)\b/i);
+    if (p1) return `phase-${p1[1]}`;
+    const p2 = title.match(/\b(phase-\d+)\b/i);
+    if (p2) return normalizeExteriorForProductCard(p2[1]);
+    return null;
+}
+
+/**
+ * Slug з повної назви маркету (без wear у дужках), коли API не дав slug.
+ * "AK-47 | Head Shot (Well-Worn)" → "ak-47-head-shot"
+ */
+function slugFromItemTitle(fullTitle) {
+    if (!fullTitle || typeof fullTitle !== 'string') return null;
+    const wearMatch = fullTitle.match(/\(([^)]+)\)\s*$/);
+    const base = wearMatch ? fullTitle.slice(0, wearMatch.index).trim() : fullTitle.trim();
+    if (!base) return null;
+    const s = base
+        .toLowerCase()
+        .normalize('NFKD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .replace(/™/gi, '')
+        .replace(/\s*★\s*/g, ' ')
+        .replace(/\|/g, ' ')
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/-+/g, '-')
+        .replace(/^-|-$/g, '');
+    return s || null;
 }
 
 /**
  * Публічна картка предмета: /{game}/product-card/{slug}/{exterior}
- * Приклад: /csgo-skins/product-card/m4a4-polysoup/factory-new
+ * Wear: factory new / minimal wear (пробіл), field-tested / well-worn / battle-scarred (дефіс).
  */
 export function getDMarketProductCardUrl(item) {
     if (!item || typeof item !== 'object') return null;
-    const slug =
+
+    let slug =
         item.slug ||
         item.extra?.slug ||
         item.attributes?.slug ||
         null;
+    if (!slug || String(slug).trim() === '') {
+        slug = slugFromItemTitle(item.title || item.itemTitle || item.extra?.name || '');
+    }
     if (!slug || String(slug).trim() === '') return null;
 
     const gameId = item.gameId || item.extra?.gameId || 'a8db';
     const gamePath = GAME_ID_TO_MARKET_PATH[gameId] || 'csgo-skins';
     const slugPart = encodeURIComponent(String(slug).trim());
-    let finalUrl = `${DMARKET_ORIGIN}/${gamePath}/product-card/${slugPart}?`;
+
+    const exteriorRaw =
+        item.extra?.exterior ?? item.attributes?.exterior ?? '';
+    const titleStr = item.title || item.itemTitle || item.extra?.name || '';
     const exterior =
-        normalizeExteriorForProductCard(
-            item.extra?.exterior ?? item.attributes?.exterior ?? ''
-        ) ||
-        exteriorFromTitle(item.title || item.itemTitle || item.extra?.name || '');
+        formatExteriorForDMarketProductCardPath(exteriorRaw) ||
+        exteriorFromTitle(titleStr) ||
+        normalizeExteriorForProductCard(exteriorRaw);
 
-    const phase = normalizeExteriorForProductCard(item.extra?.phase ?? item.attributes?.phase ?? '')
+    const phaseRaw = item.extra?.phase ?? item.attributes?.phase ?? '';
+    const phase =
+        normalizePhaseForProductCard(phaseRaw) ||
+        phaseFromTitle(item.title || item.itemTitle || item.extra?.name || '');
 
+    let pathUrl;
     if (exterior) {
-        // Сегмент wear уже ASCII+дефіси; encodeURIComponent лишає їх без змін
         const extPart = encodeURIComponent(exterior);
-        finalUrl += `exterior=${extPart}&`;
+        pathUrl = `${DMARKET_ORIGIN}/${gamePath}/product-card/${slugPart}/${extPart}`;
+    } else {
+        pathUrl = `${DMARKET_ORIGIN}/${gamePath}/product-card/${slugPart}`;
     }
+
     if (phase) {
-        const phasePart = encodeURIComponent(phase);
-        finalUrl += `phase=${phasePart}`;
+        const u = new URL(pathUrl);
+        u.searchParams.set('phase', phase);
+        return u.toString();
     }
-    return finalUrl;
+    return pathUrl;
 }
 
 export async function openUrlInBrowser(url) {

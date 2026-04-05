@@ -89,6 +89,12 @@
     font-size: 13px;
 }
 
+.balance-item.listed-net {
+    padding-top: 4px;
+    margin-top: 4px;
+    border-top: 1px dashed var(--border-color);
+}
+
 .balance-item.total {
     margin-top: 10px;
     padding-top: 10px;
@@ -115,6 +121,14 @@
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
+}
+
+.balance-value.listed {
+    background: linear-gradient(135deg, #34d399, #10b981);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    font-weight: 800;
 }
 
 .balance-value.frozen {
