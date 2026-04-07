@@ -192,6 +192,7 @@ export function OffersTable({
                 accessor: 'itemTitle',
                 title: t('offers.item'),
                 sortable: true,
+                width: 260,
                 render: (offer) => (
                     <OfferItemTitleCell
                         offer={offer}
@@ -210,12 +211,14 @@ export function OffersTable({
                 accessor: 'ourPrice',
                 title: t('offers.ourPrice'),
                 sortable: true,
+                width: 120,
                 render: (offer) => <OfferPriceCell offer={offer} />
             },
             {
                 accessor: 'marketPrice',
                 title: t('offers.marketPrice'),
                 sortable: true,
+                width: 110,
                 render: (offer) => {
                     const offerId = getOfferId(offer);
                     const mp = marketPrices[offerId] || (loadingMarketPrices ? '...' : 'N/A');
@@ -243,6 +246,7 @@ export function OffersTable({
                 accessor: 'float',
                 title: t('offers.float'),
                 sortable: true,
+                width: 160,
                 render: (offer) => {
                     const fv = offer.extra?.floatValue
                         ? parseFloat(offer.extra.floatValue).toFixed(5)

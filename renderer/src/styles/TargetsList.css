@@ -423,11 +423,35 @@
     transform: scaleY(1);
 }
 
+.target-item-scroll-wrapper {
+    overflow-x: auto;
+    scrollbar-width: thin;
+    scrollbar-color: var(--border-color) transparent;
+}
+
+.target-item-scroll-wrapper::-webkit-scrollbar {
+    height: 5px;
+}
+
+.target-item-scroll-wrapper::-webkit-scrollbar-thumb {
+    background: var(--border-color);
+    border-radius: 4px;
+}
+
+.target-item-scroll-wrapper::-webkit-scrollbar-thumb:hover {
+    background: var(--text-tertiary);
+}
+
+.target-item-scroll-wrapper::-webkit-scrollbar-track {
+    background: transparent;
+}
+
 .target-item {
-    display: flex;
+    display: inline-flex;
     align-items: flex-start;
     gap: 12px;
-    min-width: 0;
+    min-width: 100%;
+    white-space: nowrap;
 }
 
 .target-item-thumb {
@@ -460,7 +484,6 @@
     flex: 1;
     min-width: 0;
     line-height: 1.4;
-    word-break: break-word;
 }
 
 .active-target-status {
@@ -702,6 +725,7 @@
 
 .targets-list .mantine-datatable-table {
     background: transparent !important;
+    min-width: 950px;
 }
 
 .targets-list .mantine-datatable-header th {

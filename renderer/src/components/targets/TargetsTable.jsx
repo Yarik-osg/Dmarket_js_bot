@@ -196,6 +196,7 @@ export function TargetsTable({
                 accessor: 'itemTitle',
                 title: t('targets.item'),
                 sortable: true,
+                width: 280,
                 render: (target) => {
                     const title = getTitle(target, unknownItemLabel);
                     const status = target.status || 'N/A';
@@ -221,6 +222,7 @@ export function TargetsTable({
                 accessor: 'ourPrice',
                 title: t('targets.ourPrice'),
                 sortable: true,
+                width: 110,
                 render: (target) => {
                     const price = target.price?.USD || 'N/A';
                     const formattedPrice = formatUsdFromApiCents(price);
@@ -242,6 +244,7 @@ export function TargetsTable({
                     </span>
                 ),
                 sortable: true,
+                width: 130,
                 render: (target) => {
                     const targetId = getTargetRowId(target);
                     const price = target.price?.USD || 'N/A';
@@ -279,6 +282,7 @@ export function TargetsTable({
                 accessor: 'amount',
                 title: t('targets.quantity'),
                 sortable: true,
+                width: 90,
                 render: (target) => {
                     const targetId = getTargetRowId(target);
                     const itemId = target.itemId;

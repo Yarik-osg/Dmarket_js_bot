@@ -191,6 +191,7 @@
 
 .offers-list .mantine-datatable-table {
     background: transparent !important;
+    min-width: 1100px;
 }
 
 .offers-list .mantine-datatable-header th {
@@ -283,11 +284,35 @@
 }
 
 /* ─── Cell styles (kept from original) ─── */
+.offer-item-scroll-wrapper {
+    overflow-x: auto;
+    scrollbar-width: thin;
+    scrollbar-color: var(--border-color) transparent;
+}
+
+.offer-item-scroll-wrapper::-webkit-scrollbar {
+    height: 5px;
+}
+
+.offer-item-scroll-wrapper::-webkit-scrollbar-thumb {
+    background: var(--border-color);
+    border-radius: 4px;
+}
+
+.offer-item-scroll-wrapper::-webkit-scrollbar-thumb:hover {
+    background: var(--text-tertiary);
+}
+
+.offer-item-scroll-wrapper::-webkit-scrollbar-track {
+    background: transparent;
+}
+
 .offer-item {
-    display: flex;
+    display: inline-flex;
     align-items: center;
     gap: 12px;
-    min-width: 0;
+    min-width: 100%;
+    white-space: nowrap;
 }
 
 .offer-item-thumb {
@@ -313,7 +338,6 @@
     flex: 1;
     min-width: 0;
     line-height: 1.4;
-    word-break: break-word;
 }
 
 .offer-price-cell {
