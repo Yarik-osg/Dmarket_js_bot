@@ -1,6 +1,6 @@
 {
   "name": "dmarket-bot",
-  "version": "0.9.1",
+  "version": "0.9.2",
   "description": "DMarket Trading Bot Desktop Application",
   "main": "main/main.js",
   "type": "module",
@@ -44,7 +44,8 @@
     "nsis": {
       "oneClick": false,
       "allowToChangeInstallationDirectory": true,
-      "differentialPackage": true
+      "differentialPackage": true,
+      "include": "build/installer.nsh"
     },
     "mac": {
       "target": [
