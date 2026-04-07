@@ -1,11 +1,15 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
 import { useAnalytics } from '../contexts/AnalyticsContext.jsx';
 import { useLocale } from '../contexts/LocaleContext.jsx';
 import { useAuth } from '../contexts/AuthContext.jsx';
 import { ApiService } from '../services/apiService.js';
 import { RiRefreshLine, RiDownloadLine } from 'react-icons/ri';
+import {
+    BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, Cell
+} from 'recharts';
 import LiquidityAnalyzer from './LiquidityAnalyzer.jsx';
 import '../styles/Analytics.css';
+import { formatUaTransactionsCount } from '../utils/formatUsd.js';
 
 function Analytics() {
     const { t } = useLocale();
@@ -61,19 +65,22 @@ function Analytics() {
                         className={`analytics-tab ${activeTab === 'statistics' ? 'active' : ''}`}
                         onClick={() => setActiveTab('statistics')}
                     >
-                        Статистика
+                        {t('analytics.tabStatistics')}
                     </button>
                     <button 
                         className={`analytics-tab ${activeTab === 'liquidity' ? 'active' : ''}`}
                         onClick={() => setActiveTab('liquidity')}
                     >
-                        Аналіз ліквідності
+                        {t('analytics.tabLiquidity')}
                     </button>
                 </div>
             </div>
 
-            {activeTab === 'statistics' ? (
-                <>
+            <div style={{ display: activeTab === 'liquidity' ? 'block' : 'none' }}>
+                <LiquidityAnalyzer />
+            </div>
+
+            <div style={{ display: activeTab === 'statistics' ? 'block' : 'none' }}>
                 <div className="analytics-header" style={{ marginTop: '0' }}>
                     <div style={{ display: 'flex', gap: '10px', alignItems: 'center', justifyContent: 'flex-end' }}>
                         <select 
@@ -134,13 +141,13 @@ function Analytics() {
                 <div className="stat-card sales">
                     <h3>{t('analytics.totalSales')}</h3>
                     <div className="stat-value">${stats.totalSales.toFixed(2)}</div>
-                    <div className="stat-label">{stats.salesCount} {t('analytics.transactions')}</div>
+                    <div className="stat-label">{formatUaTransactionsCount(stats.salesCount)}</div>
                 </div>
                 
                 <div className="stat-card purchases">
                     <h3>{t('analytics.totalPurchases')}</h3>
                     <div className="stat-value">${stats.totalPurchases.toFixed(2)}</div>
-                    <div className="stat-label">{stats.purchasesCount} {t('analytics.transactions')}</div>
+                    <div className="stat-label">{formatUaTransactionsCount(stats.purchasesCount)}</div>
                 </div>
             </div>
 
@@ -177,15 +184,14 @@ function Analytics() {
             <div className="analytics-section">
                 <h2 className="analytics-section-title">{t('analytics.salesChart')}</h2>
                 <p style={{ color: 'var(--text-secondary)', fontSize: '14px', marginBottom: '16px' }}>
-                    Графік показує продажі та покупки по днях. Зелені стовпці - продажі (дохід), червоні стовпці - покупки (витрати).
-                    Наведіть курсор на стовпці, щоб побачити деталі.
+                    {t('analytics.chartDesc')}
                 </p>
                 {stats.dailyData.length > 0 ? (
                     <div className="chart-container">
-                        <SimpleChart data={stats.dailyData} />
+                        <SalesChart data={stats.dailyData} t={t} />
                     </div>
                 ) : (
-                    <div className="analytics-empty">Немає даних для графіка</div>
+                    <div className="analytics-empty">{t('analytics.chartNoData')}</div>
                 )}
             </div>
 
@@ -476,211 +482,137 @@ function Analytics() {
                     );
                 })()}
             </div>
-        </>
-        ) : (
-            <LiquidityAnalyzer />
-        )}
+            </div>
         </div>
     );
 }
 
-function SimpleChart({ data }) {
-    const [tooltip, setTooltip] = useState(null);
-    const [tooltipPosition, setTooltipPosition] = useState({ x: 0, y: 0 });
-    
-    if (data.length === 0) return null;
+function getTransactionWord(count) {
+    const lastDigit = count % 10;
+    const lastTwoDigits = count % 100;
+    if (lastDigit === 1 && lastTwoDigits !== 11) return 'транзакція';
+    if (lastDigit >= 2 && lastDigit <= 4 && (lastTwoDigits < 12 || lastTwoDigits > 14)) return 'транзакції';
+    return 'транзакцій';
+}
 
-    const maxValue = Math.max(...data.map(d => Math.max(d.sales, d.purchases)), 1);
-    const width = 100;
-    const height = 300;
-    const barWidth = Math.max(2, (width / data.length) - 1);
-    
-    // Форматуємо дату для відображення
-    const formatDate = (dateString) => {
-        const date = new Date(dateString);
-        return date.toLocaleDateString('uk-UA', { day: '2-digit', month: '2-digit' });
-    };
-    
-    const formatDateFull = (dateString) => {
-        const date = new Date(dateString);
-        return date.toLocaleDateString('uk-UA', { day: '2-digit', month: '2-digit', year: 'numeric' });
-    };
-    
-    // Функція для правильного відмінювання слова "транзакція" в українській мові
-    const getTransactionWord = (count) => {
-        const lastDigit = count % 10;
-        const lastTwoDigits = count % 100;
-        
-        // 1, 21, 31, 41... (крім 11) - транзакція
-        if (lastDigit === 1 && lastTwoDigits !== 11) {
-            return 'транзакція';
-        }
-        // 2, 3, 4, 22, 23, 24... (крім 12, 13, 14) - транзакції
-        if (lastDigit >= 2 && lastDigit <= 4 && (lastTwoDigits < 12 || lastTwoDigits > 14)) {
-            return 'транзакції';
-        }
-        // 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15... - транзакцій
-        return 'транзакцій';
-    };
-    
-    const handleBarHover = (e, d) => {
-        const rect = e.currentTarget.getBoundingClientRect();
-        const chartRect = e.currentTarget.closest('.chart-wrapper').getBoundingClientRect();
-        const date = formatDateFull(d.date);
-        
-        // Підраховуємо кількість транзакцій для продажів та покупок окремо
-        const salesCount = d.salesCount || 0;
-        const purchasesCount = d.purchasesCount || 0;
-        const totalCount = salesCount + purchasesCount;
-        
-        // Формуємо текст тултіпа з обома даними
-        let tooltipText = `Дата: ${date}\n`;
-        if (d.sales > 0) {
-            tooltipText += `Продажі: $${d.sales.toFixed(2)}`;
-            if (salesCount > 0) {
-                tooltipText += ` (${salesCount} ${getTransactionWord(salesCount)})`;
-            }
-            tooltipText += '\n';
-        }
-        if (d.purchases > 0) {
-            tooltipText += `Покупки: $${d.purchases.toFixed(2)}`;
-            if (purchasesCount > 0) {
-                tooltipText += ` (${purchasesCount} ${getTransactionWord(purchasesCount)})`;
-            }
-            tooltipText += '\n';
-        }
-        if (totalCount > 0) {
-            tooltipText += `Всього: ${totalCount} ${getTransactionWord(totalCount)}`;
-        }
-        
-        setTooltip(tooltipText);
-        setTooltipPosition({
-            x: rect.left - chartRect.left + rect.width / 2,
-            y: rect.top - chartRect.top - 10
-        });
-    };
-    
-    const handleBarLeave = () => {
-        setTooltip(null);
-    };
-    
+function formatDateShort(dateString) {
+    return new Date(dateString).toLocaleDateString('uk-UA', { day: '2-digit', month: '2-digit' });
+}
+
+function formatDateFull(dateString) {
+    return new Date(dateString).toLocaleDateString('uk-UA', { day: '2-digit', month: '2-digit', year: 'numeric' });
+}
+
+function ChartTooltipContent({ active, payload, label, t }) {
+    if (!active || !payload || payload.length === 0) return null;
+    const row = payload[0]?.payload;
+    if (!row) return null;
+
+    const salesCount = row.salesCount || 0;
+    const purchasesCount = row.purchasesCount || 0;
+    const totalCount = salesCount + purchasesCount;
+
     return (
-        <div className="chart-wrapper">
-            {tooltip && (
-                <div 
-                    className="chart-tooltip"
-                    style={{
-                        left: `${tooltipPosition.x}px`,
-                        top: `${tooltipPosition.y}px`,
-                        transform: 'translateX(-50%)'
-                    }}
-                >
-                    {tooltip.split('\n').map((line, i) => (
-                        <div key={i}>{line}</div>
-                    ))}
+        <div className="chart-tooltip-recharts">
+            <div className="chart-tooltip-date">{t('analytics.chartTooltipDate')}: {formatDateFull(row.date)}</div>
+            {row.sales > 0 && (
+                <div className="chart-tooltip-row sales">
+                    {t('analytics.chartSales')}: ${row.sales.toFixed(2)}
+                    {salesCount > 0 && <span className="chart-tooltip-count"> ({salesCount} {getTransactionWord(salesCount)})</span>}
                 </div>
             )}
-            <div style={{ position: 'relative', width: '100%', height: '300px' }}>
-                <svg viewBox={`0 0 ${width} ${height}`} className="simple-chart" preserveAspectRatio="none" style={{ width: '100%', height: '100%' }}>
-                    {/* Визначаємо градієнти */}
+            {row.purchases > 0 && (
+                <div className="chart-tooltip-row purchases">
+                    {t('analytics.chartPurchases')}: ${row.purchases.toFixed(2)}
+                    {purchasesCount > 0 && <span className="chart-tooltip-count"> ({purchasesCount} {getTransactionWord(purchasesCount)})</span>}
+                </div>
+            )}
+            {totalCount > 0 && (
+                <div className="chart-tooltip-row total">
+                    {t('analytics.chartTooltipTotal')}: {totalCount} {getTransactionWord(totalCount)}
+                </div>
+            )}
+        </div>
+    );
+}
+
+function SalesChart({ data, t }) {
+    if (data.length === 0) return null;
+
+    const chartData = useMemo(
+        () => data.map((d) => ({ ...d, label: formatDateShort(d.date) })),
+        [data]
+    );
+
+    const renderTooltip = useCallback(
+        (props) => <ChartTooltipContent {...props} t={t} />,
+        [t]
+    );
+
+    return (
+        <div className="chart-wrapper" role="img" aria-label={t('analytics.salesChart')}>
+            <ResponsiveContainer width="100%" height={340}>
+                <BarChart data={chartData} margin={{ top: 8, right: 12, left: 0, bottom: 4 }} barGap={2} barCategoryGap="20%">
                     <defs>
-                        <linearGradient id="salesGradient" x1="0%" y1="0%" x2="0%" y2="100%">
-                            <stop offset="0%" style={{ stopColor: '#10b981', stopOpacity: 0.9 }} />
-                            <stop offset="100%" style={{ stopColor: '#059669', stopOpacity: 0.7 }} />
+                        <linearGradient id="salesGradient" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="0%" stopColor="#10b981" stopOpacity={0.95} />
+                            <stop offset="100%" stopColor="#059669" stopOpacity={0.75} />
                         </linearGradient>
-                        <linearGradient id="purchasesGradient" x1="0%" y1="0%" x2="0%" y2="100%">
-                            <stop offset="0%" style={{ stopColor: '#ef4444', stopOpacity: 0.9 }} />
-                            <stop offset="100%" style={{ stopColor: '#dc2626', stopOpacity: 0.7 }} />
+                        <linearGradient id="purchasesGradient" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="0%" stopColor="#ef4444" stopOpacity={0.95} />
+                            <stop offset="100%" stopColor="#dc2626" stopOpacity={0.75} />
                         </linearGradient>
                     </defs>
-                    
-                    {data.map((d, i) => {
-                        const x = (i / data.length) * width;
-                        const salesHeight = (d.sales / maxValue) * height;
-                        const purchasesHeight = (d.purchases / maxValue) * height;
-                        
-                        return (
-                            <g 
-                                key={i}
-                                onMouseEnter={(e) => handleBarHover(e, d)}
-                                onMouseLeave={handleBarLeave}
-                                style={{ cursor: 'pointer' }}
-                            >
-                                {d.sales > 0 && (
-                                    <rect
-                                        x={x}
-                                        y={height - salesHeight}
-                                        width={barWidth}
-                                        height={salesHeight}
-                                        fill="url(#salesGradient)"
-                                        className="chart-bar sales-bar"
-                                        rx="2"
-                                    />
-                                )}
-                                {d.purchases > 0 && (
-                                    <rect
-                                        x={x}
-                                        y={height - purchasesHeight}
-                                        width={barWidth}
-                                        height={purchasesHeight}
-                                        fill="url(#purchasesGradient)"
-                                        className="chart-bar purchases-bar"
-                                        rx="2"
-                                    />
-                                )}
-                            </g>
-                        );
-                    })}
-                </svg>
-                {/* Дати винесені за межі SVG для кращого відображення */}
-                <div style={{ 
-                    position: 'relative',
-                    marginTop: '8px',
-                    height: '18px',
-                    width: '100%'
-                }}>
-                    {data.map((d, i) => {
-                        const date = formatDate(d.date);
-                        // Показуємо максимум 12 дат, якщо їх більше - показуємо кожну N-ту
-                        const maxDates = 12;
-                        const step = data.length > maxDates ? Math.ceil(data.length / maxDates) : 1;
-                        const showDate = i % step === 0 || i === data.length - 1;
-                        
-                        // Розраховуємо позицію відсотком від ширини контейнера
-                        const positionPercent = data.length > 1 ? (i / (data.length - 1)) * 100 : 50;
-                        
-                        return (
-                            <span 
-                                key={i} 
-                                style={{ 
-                                    position: 'absolute',
-                                    left: `${positionPercent}%`,
-                                    transform: 'translateX(-50%)',
-                                    fontSize: showDate ? '8px' : '0',
-                                    color: 'var(--text-secondary)',
-                                    whiteSpace: 'nowrap',
-                                    opacity: showDate ? 1 : 0,
-                                    pointerEvents: 'none',
-                                    lineHeight: '1.2'
-                                }}
-                                title={date}
-                            >
-                                {showDate ? date : ''}
-                            </span>
-                        );
-                    })}
-                </div>
-            </div>
-            <div className="chart-legend">
-                <div className="legend-item">
-                    <span className="legend-color sales"></span>
-                    <span>Продажі</span>
-                </div>
-                <div className="legend-item">
-                    <span className="legend-color purchases"></span>
-                    <span>Покупки</span>
-                </div>
-            </div>
+                    <CartesianGrid
+                        strokeDasharray="3 6"
+                        stroke="rgba(255,255,255,0.06)"
+                        vertical={false}
+                    />
+                    <XAxis
+                        dataKey="label"
+                        tick={{ fill: 'var(--text-secondary)', fontSize: 11, fontWeight: 600 }}
+                        axisLine={{ stroke: 'var(--border-color)' }}
+                        tickLine={false}
+                        interval="preserveStartEnd"
+                        minTickGap={32}
+                    />
+                    <YAxis
+                        tick={{ fill: 'var(--text-secondary)', fontSize: 11, fontWeight: 600 }}
+                        axisLine={false}
+                        tickLine={false}
+                        tickFormatter={(v) => `$${v}`}
+                        width={60}
+                    />
+                    <Tooltip
+                        content={renderTooltip}
+                        cursor={{ fill: 'rgba(255,255,255,0.04)' }}
+                        wrapperStyle={{ outline: 'none' }}
+                    />
+                    <Legend
+                        verticalAlign="bottom"
+                        iconType="square"
+                        iconSize={14}
+                        wrapperStyle={{ paddingTop: 16, fontSize: 14, fontWeight: 600 }}
+                        formatter={(value) =>
+                            value === 'sales' ? t('analytics.chartSales') : t('analytics.chartPurchases')
+                        }
+                    />
+                    <Bar
+                        dataKey="sales"
+                        name="sales"
+                        fill="url(#salesGradient)"
+                        radius={[4, 4, 0, 0]}
+                        maxBarSize={48}
+                    />
+                    <Bar
+                        dataKey="purchases"
+                        name="purchases"
+                        fill="url(#purchasesGradient)"
+                        radius={[4, 4, 0, 0]}
+                        maxBarSize={48}
+                    />
+                </BarChart>
+            </ResponsiveContainer>
         </div>
     );
 }

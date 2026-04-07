@@ -245,10 +245,8 @@ function MainLayout() {
         return <AuthScreen />;
     }
 
-    const renderContent = () => {
+    const renderSwitchContent = () => {
         switch (activeTab) {
-            case 'analytics':
-                return <Analytics />;
             case 'notifications':
                 return <Notifications />;
             case 'settings':
@@ -271,7 +269,7 @@ function MainLayout() {
                 onToggleOffersParsing={() => setIsOffersParsingEnabled(prev => !prev)}
             />
             <div className="main-content">
-                {/* Always render components but hide them with CSS to keep intervals running */}
+                {/* Always render stateful components, hide with CSS to preserve state */}
                 <div style={{ display: activeTab === 'orders' ? 'block' : 'none' }}>
                     <TargetsList 
                         isAutoUpdatingEnabled={isTargetsParsingEnabled}
@@ -284,7 +282,10 @@ function MainLayout() {
                         onToggleAutoUpdate={() => setIsOffersParsingEnabled(prev => !prev)}
                     />
                 </div>
-                {activeTab !== 'orders' && activeTab !== 'offers' && renderContent()}
+                <div style={{ display: activeTab === 'analytics' ? 'block' : 'none' }}>
+                    <Analytics />
+                </div>
+                {activeTab !== 'orders' && activeTab !== 'offers' && activeTab !== 'analytics' && renderSwitchContent()}
             </div>
         </div>
     );

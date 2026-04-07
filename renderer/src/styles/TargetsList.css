@@ -32,6 +32,20 @@
     flex-wrap: wrap;
 }
 
+.targets-search-wrap {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+}
+
+.targets-search-icon {
+    position: absolute;
+    left: 14px;
+    font-size: 18px;
+    color: var(--text-tertiary);
+    pointer-events: none;
+}
+
 .targets-search {
     padding: 10px 16px;
     padding-left: 40px;
@@ -54,6 +68,78 @@
     color: var(--text-tertiary);
 }
 
+@media (max-width: 640px) {
+    .targets-search {
+        max-width: none;
+        width: 100%;
+    }
+}
+
+.targets-only-active {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    cursor: pointer;
+    user-select: none;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-primary);
+    white-space: nowrap;
+}
+
+.targets-only-active-input {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+    opacity: 0;
+}
+
+.targets-only-active-face {
+    width: 22px;
+    height: 22px;
+    min-width: 22px;
+    border-radius: var(--radius-sm);
+    border: 2px solid var(--border-color);
+    background: var(--bg-secondary);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    transition:
+        border-color 0.2s ease,
+        box-shadow 0.2s ease,
+        background 0.2s ease;
+}
+
+.targets-only-active-input:focus-visible + .targets-only-active-face {
+    box-shadow: 0 0 0 3px var(--accent-light);
+}
+
+.targets-only-active-input:checked + .targets-only-active-face {
+    background: linear-gradient(135deg, var(--accent-color), var(--info-color));
+    border-color: transparent;
+    box-shadow: 0 2px 8px rgba(59, 130, 246, 0.35);
+}
+
+.targets-only-active-input:checked + .targets-only-active-face::after {
+    content: '';
+    width: 5px;
+    height: 9px;
+    border: solid #fff;
+    border-width: 0 2px 2px 0;
+    transform: rotate(45deg);
+    margin-bottom: 2px;
+}
+
+.targets-only-active-text {
+    line-height: 1.2;
+}
+
 .btn {
     padding: 10px 18px;
     border: none;
@@ -70,13 +156,13 @@
 .btn-primary {
     background: var(--accent-color);
     color: #ffffff;
-    box-shadow: var(--shadow-sm);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
 }
 
 .btn-primary:hover {
     background: var(--accent-hover);
-    transform: translateY(-2px);
-    box-shadow: var(--shadow);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(59, 130, 246, 0.25);
 }
 
 .btn-secondary {
@@ -91,12 +177,110 @@
     transform: translateY(-2px);
 }
 
+.btn.btn-reset {
+    background: linear-gradient(135deg, var(--accent-color), var(--info-color));
+    color: #ffffff;
+    border: none;
+    box-shadow: 0 2px 10px rgba(59, 130, 246, 0.35);
+}
+
+.btn.btn-reset:hover:not(:disabled) {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 16px rgba(59, 130, 246, 0.45);
+}
+
+.btn.btn-reset:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    transform: none;
+}
+
+.targets-list .btn-icon {
+    width: 36px;
+    height: 36px;
+    min-width: 36px;
+    padding: 0;
+    border: none;
+    border-radius: var(--radius-md);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    background: linear-gradient(135deg, var(--accent-color), var(--info-color));
+    color: #ffffff;
+    box-shadow: 0 2px 8px rgba(59, 130, 246, 0.3);
+    transition: transform 0.2s ease, box-shadow 0.2s ease, opacity 0.2s ease;
+    font-size: 18px;
+}
+
+.targets-list .btn-icon:hover:not(:disabled) {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
+}
+
+.targets-list .btn-icon:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+}
+
+.targets-list .btn-icon-danger {
+    background: linear-gradient(135deg, var(--error-color), #dc2626);
+    box-shadow: 0 2px 8px rgba(239, 68, 68, 0.35);
+}
+
+.targets-list .btn-icon-danger:hover:not(:disabled) {
+    box-shadow: 0 4px 12px rgba(239, 68, 68, 0.45);
+}
+
 /* Price Reset Panel */
+.targets-bulk-progress {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-secondary);
+    white-space: nowrap;
+}
+
+.targets-market-prices-hint {
+    font-size: 12px;
+    margin-top: 5px;
+}
+
+.targets-th-market {
+    vertical-align: bottom;
+}
+
+.targets-th-market-title {
+    display: block;
+}
+
+.targets-th-market-legend {
+    display: block;
+    font-size: 10px;
+    font-weight: 500;
+    text-transform: none;
+    letter-spacing: 0;
+    color: var(--text-tertiary);
+    margin-top: 4px;
+    max-width: 220px;
+    line-height: 1.3;
+}
+
+.targets-table--loading tbody {
+    opacity: 0.55;
+    pointer-events: none;
+    transition: opacity 0.2s ease;
+}
+
+.targets-empty-actions {
+    margin-top: 12px;
+}
+
 .price-reset-panel {
     display: flex;
     align-items: center;
     justify-content: space-between;
     gap: 20px;
+    flex-wrap: wrap;
     padding: 16px 20px;
     margin-bottom: 20px;
     background: linear-gradient(135deg, rgba(59, 130, 246, 0.08), rgba(99, 102, 241, 0.08));
@@ -174,38 +358,6 @@
     font-weight: 700;
 }
 
-.btn-reset {
-    background: linear-gradient(135deg, var(--accent-color), var(--info-color));
-    color: white;
-    border: none;
-    padding: 10px 18px;
-    border-radius: var(--radius-md);
-    cursor: pointer;
-    font-size: 14px;
-    font-weight: 600;
-    display: inline-flex;
-    align-items: center;
-    gap: 8px;
-    transition: all 0.3s ease;
-    box-shadow: 0 4px 15px rgba(59, 130, 246, 0.3);
-    white-space: nowrap;
-}
-
-.btn-reset:hover:not(:disabled) {
-    background: linear-gradient(135deg, var(--info-color), var(--accent-color));
-    transform: translateY(-2px);
-    box-shadow: 0 6px 20px rgba(59, 130, 246, 0.4);
-}
-
-.btn-reset:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-}
-
-.btn-reset svg {
-    font-size: 18px;
-}
-
 .targets-table-container {
     flex: 1;
     overflow: auto;
@@ -224,7 +376,7 @@
 
 .targets-table th {
     background: var(--bg-tertiary);
-    padding: 16px;
+    padding: 12px 14px;
     text-align: left;
     font-weight: 700;
     font-size: 13px;
@@ -238,9 +390,10 @@
 }
 
 .targets-table td {
-    padding: 16px;
+    padding: 10px 14px;
     border-bottom: 1px solid var(--border-color);
     font-size: 14px;
+    vertical-align: middle;
 }
 
 .targets-table tbody tr {
@@ -278,8 +431,8 @@
 }
 
 .target-item-thumb {
-    width: 48px;
-    height: 48px;
+    width: 40px;
+    height: 40px;
     object-fit: cover;
     border-radius: var(--radius-md);
     flex-shrink: 0;
@@ -359,9 +512,19 @@
     background: #fee2e2;
 }
 
+.max-price-editor-wrap {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    min-width: 152px;
+    width: 100%;
+}
+
 .max-price-input {
-    width: 100px;
-    padding: 8px 12px;
+    box-sizing: border-box;
+    width: 100%;
+    min-width: 132px;
+    padding: 8px 10px;
     background: var(--bg-primary);
     border: 2px solid var(--border-color);
     border-radius: var(--radius-sm);
@@ -397,44 +560,10 @@
 
 .target-actions {
     display: flex;
-    gap: 8px;
-    align-items: center;
-}
-
-.btn-icon {
-    position: relative;
-    background: linear-gradient(135deg, var(--accent-color), var(--info-color));
-    color: #ffffff;
-    border: none;
-    border-radius: var(--radius-md);
-    padding: 8px 12px;
-    cursor: pointer;
-    font-size: 14px;
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    display: inline-flex;
+    gap: 6px;
     align-items: center;
     justify-content: center;
-    min-width: 36px;
-    height: 36px;
-    box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
-}
-
-.btn-icon:hover {
-    background: linear-gradient(135deg, var(--info-color), var(--accent-color));
-    transform: translateY(-3px) scale(1.05);
-    box-shadow: 0 6px 20px rgba(59, 130, 246, 0.4);
-}
-
-.btn-icon:active {
-    transform: translateY(-1px) scale(0.98);
-}
-
-.btn-icon-danger {
-    background: linear-gradient(135deg, var(--error-color), #dc2626) !important;
-}
-
-.btn-icon-danger:hover {
-    background: linear-gradient(135deg, #dc2626, var(--error-color)) !important;
+    flex-wrap: nowrap;
 }
 
 /* Float Progress Bar */
@@ -510,7 +639,9 @@
 .price-cell {
     cursor: help;
     transition: all 0.2s ease;
-    display: inline-block;
+    display: inline-flex;
+    align-items: center;
+    min-height: 1.35em;
 }
 
 .price-cell:hover {
@@ -547,4 +678,106 @@
     border: 2px solid var(--error-color);
 }
 
+/* Mantine DataTable (замовлення) — slate як у решти UI, не дефолтний чорний Mantine */
+.targets-table-container--mantine {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    background: rgba(255, 255, 255, 0.02);
+    backdrop-filter: blur(10px);
+    border-radius: var(--radius-lg);
+    border: 1px solid var(--border-color);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+}
+
+.targets-list .mantine-datatable {
+    --mantine-datatable-background-color: rgba(255, 255, 255, 0.02);
+    --mantine-datatable-border-color: var(--border-color);
+    --mantine-datatable-row-border-color: var(--border-color);
+    --mantine-datatable-color: var(--text-primary);
+    --mantine-datatable-striped-color: rgba(255, 255, 255, 0.04);
+    --mantine-datatable-highlight-on-hover-color: var(--bg-hover);
+}
+
+.targets-list .mantine-datatable-table {
+    background: transparent !important;
+}
+
+.targets-list .mantine-datatable-header th {
+    background: var(--bg-tertiary) !important;
+    color: var(--text-secondary) !important;
+    font-size: 12px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    border-color: var(--border-color) !important;
+}
+
+.targets-list .mantine-datatable-table tbody td {
+    background: transparent;
+    color: var(--text-primary);
+    border-color: var(--border-color) !important;
+}
+
+.targets-list .mantine-datatable-table[data-highlight-on-hover] tbody tr:hover td {
+    background: var(--bg-hover) !important;
+}
+
+[data-mantine-color-scheme='dark'] .targets-list .mantine-datatable-header-cell-sortable:hover:not(:has(button:hover)) {
+    background: var(--bg-hover) !important;
+}
+
+[data-mantine-color-scheme='dark'] .targets-list .mantine-datatable-header-cell-sortable-unsorted-icon {
+    color: var(--text-tertiary) !important;
+}
+
+.targets-list .mantine-datatable-loader {
+    background: color-mix(in srgb, var(--bg-secondary) 75%, transparent) !important;
+}
+
+/* Колонка «Макс. ціна»: достатня ширина для плейсхолдера та інпута */
+.targets-list .mantine-datatable-table th[data-accessor='maxPrice'],
+.targets-list .mantine-datatable-table td[data-accessor='maxPrice'] {
+    min-width: 175px;
+    overflow: visible;
+    white-space: nowrap;
+}
+
+.targets-mantine-datatable {
+    flex: 1;
+    min-height: 0;
+}
+
+.targets-mantine-datatable--loading .mantine-datatable-table,
+.targets-mantine-datatable--loading [class*='datatable'] table {
+    opacity: 0.55;
+}
+
+.targets-list .mantine-Menu-dropdown {
+    background: var(--bg-secondary) !important;
+    border: 1px solid var(--border-color);
+}
+
+.targets-list .mantine-Menu-label {
+    color: var(--text-secondary);
+}
+
+.targets-datatable-empty {
+    text-align: center;
+    padding: 2rem 1rem;
+    max-width: 360px;
+    margin: 0 auto;
+}
+
+.targets-th-market-mantine {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    align-items: flex-start;
+}
+
+.targets-column-menu-row {
+    padding: 6px 12px;
+}
 

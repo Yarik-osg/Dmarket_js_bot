@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useCallback, useMemo, useRef } from 'react';
 import { useAuth } from '../contexts/AuthContext.jsx';
 import { ApiService } from '../services/apiService.js';
 
@@ -7,6 +7,7 @@ export function useTargets() {
     const [targets, setTargets] = useState([]);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
+    const loadingRef = useRef(false);
 
     // Memoize apiService to prevent recreation on every render
     const apiService = useMemo(() => {
@@ -14,13 +15,15 @@ export function useTargets() {
     }, [client]);
 
     const loadTargets = useCallback(async (items = []) => {
-        if (!apiService || loading) return; // Prevent concurrent calls
+        if (!apiService || loadingRef.current) return undefined;
 
+        loadingRef.current = true;
         setLoading(true);
         setError(null);
 
+        let nextTargets = [];
+
         try {
-            // If items provided, fetch targets for each item
             if (items.length > 0) {
                 const allTargets = [];
                 for (const item of items) {
@@ -33,19 +36,21 @@ export function useTargets() {
                         console.error(`Error loading targets for ${item.title}:`, err);
                     }
                 }
+                nextTargets = allTargets;
                 setTargets(allTargets);
             } else {
-                // Try to get user targets
                 try {
                     const response = await apiService.getUserTargets({ currency: 'USD', gameId: 'a8db', limit: 100 });
-                    // API returns { objects: [...], cursor: "...", total: {...} }
-                    // Filter only targets (type === 'target')
                     const targetsList = response?.objects?.filter(obj => obj.type === 'target') || [];
-                    console.log('Loaded targets:', targetsList.length, targetsList);
+                    if (import.meta.env.DEV) {
+                        console.log('Loaded targets:', targetsList.length, targetsList);
+                    }
+                    nextTargets = targetsList;
                     setTargets(targetsList);
                 } catch (err) {
                     console.error('Error loading user targets:', err);
-                    // If user targets not available, return empty
+                    setError(err.message || 'Failed to load targets');
+                    nextTargets = [];
                     setTargets([]);
                 }
             }
@@ -53,9 +58,12 @@ export function useTargets() {
             setError(err.message);
             console.error('Error loading targets:', err);
         } finally {
+            loadingRef.current = false;
             setLoading(false);
         }
-    }, [apiService, loading]);
+
+        return nextTargets;
+    }, [apiService]);
 
     const createTarget = useCallback(async (targetData) => {
         if (!apiService) throw new Error('Not authenticated');
