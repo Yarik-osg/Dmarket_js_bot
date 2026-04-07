@@ -1,6 +1,6 @@
 {
   "name": "dmarket-bot",
-  "version": "0.9.5",
+  "version": "0.9.6",
   "description": "DMarket Trading Bot Desktop Application",
   "main": "main/main.js",
   "type": "module",
