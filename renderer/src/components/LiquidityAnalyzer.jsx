@@ -35,8 +35,7 @@ function LiquidityAnalyzer() {
     const [maxItems, setMaxItems] = usePersistedState('liquidity_maxItems', 100, INT);
     const [minPrice, setMinPrice] = usePersistedState('liquidity_minPrice', '', RAW);
     const [maxPrice, setMaxPrice] = usePersistedState('liquidity_maxPrice', '', RAW);
-    const [floatFrom, setFloatFrom] = usePersistedState('liquidity_floatFrom', '', RAW);
-    const [floatTo, setFloatTo] = usePersistedState('liquidity_floatTo', '', RAW);
+    const [selectedFloats, setSelectedFloats] = usePersistedState('liquidity_selectedFloats', []);
     const requestDelay = 300;
     const [minROI, setMinROI] = usePersistedState('liquidity_minROI', '', RAW);
 
@@ -48,7 +47,7 @@ function LiquidityAnalyzer() {
     // Aggregated filters object for LiquidityFilters component
     const filters = {
         selectedCategories, selectedQualities, selectedExteriors, selectedStatTrak,
-        minPrice, maxPrice, floatFrom, floatTo, minROI, maxItems, itemSearch,
+        minPrice, maxPrice, selectedFloats, minROI, maxItems, itemSearch,
     };
     const setFilters = useCallback((updater) => {
         const next = typeof updater === 'function' ? updater(filters) : updater;
@@ -58,8 +57,7 @@ function LiquidityAnalyzer() {
         if (next.selectedStatTrak !== undefined) setSelectedStatTrak(next.selectedStatTrak);
         if (next.minPrice !== undefined) setMinPrice(next.minPrice);
         if (next.maxPrice !== undefined) setMaxPrice(next.maxPrice);
-        if (next.floatFrom !== undefined) setFloatFrom(next.floatFrom);
-        if (next.floatTo !== undefined) setFloatTo(next.floatTo);
+        if (next.selectedFloats !== undefined) setSelectedFloats(next.selectedFloats);
         if (next.minROI !== undefined) setMinROI(next.minROI);
         if (next.maxItems !== undefined) setMaxItems(next.maxItems);
         if (next.itemSearch !== undefined) setItemSearch(next.itemSearch);
@@ -120,7 +118,7 @@ function LiquidityAnalyzer() {
             const treeFilter = buildTreeFilters({
                 categories: selectedCategories, qualities: selectedQualities,
                 exteriors: selectedExteriors, statTrak: selectedStatTrak,
-                floatFrom, floatTo,
+                selectedFloats,
             });
 
             let allItems = [];
@@ -201,20 +199,16 @@ function LiquidityAnalyzer() {
                         }).catch(() => null),
                     ]);
                     let sales = salesHistory.sales || [];
-                    sales = filterSalesClientSide(sales, { exteriors: selectedExteriors, floatFrom, floatTo });
+                    sales = filterSalesClientSide(sales, { exteriors: selectedExteriors, selectedFloats });
 
                     let currentMaxTarget = 0;
                     if (targetsData?.orders?.length > 0) {
                         let orders = targetsData.orders;
-                        if (floatFrom || floatTo) {
-                            const fFrom = floatFrom ? parseFloat(floatFrom) : 0;
-                            const fTo = floatTo ? parseFloat(floatTo) : 1;
+                        if (selectedFloats.length > 0) {
                             orders = orders.filter(o => {
                                 const fv = o.attributes?.floatPartValue;
                                 if (!fv || fv === 'any') return true;
-                                const f = parseFloat(fv);
-                                if (Number.isNaN(f)) return true;
-                                return f >= fFrom && f <= fTo;
+                                return selectedFloats.includes(fv);
                             });
                         } else {
                             orders = orders.filter(o => {

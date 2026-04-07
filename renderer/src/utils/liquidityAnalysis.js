@@ -4,11 +4,35 @@ import {
     detectPriceSpike,
     analyzePriceStability,
 } from './liquidityMetrics.js';
+import { FLOAT_PART_TO_RANGE } from './csFloatRanges.js';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const DMARKET_FEE_PERCENT = 5;
 
-export function buildTreeFilters({ categories, qualities, exteriors, statTrak, floatFrom, floatTo }) {
+const _parsedRangeCache = {};
+function parsedRange(token) {
+    if (_parsedRangeCache[token]) return _parsedRangeCache[token];
+    const str = FLOAT_PART_TO_RANGE[token];
+    if (!str) return null;
+    const [min, max] = str.split('-').map(Number);
+    const r = { min, max };
+    _parsedRangeCache[token] = r;
+    return r;
+}
+
+export function getFloatRangeFromTokens(selectedFloats) {
+    if (!selectedFloats?.length) return null;
+    let lo = 1, hi = 0;
+    for (const token of selectedFloats) {
+        const r = parsedRange(token);
+        if (!r) continue;
+        if (r.min < lo) lo = r.min;
+        if (r.max > hi) hi = r.max;
+    }
+    return hi > 0 ? { floatFrom: lo, floatTo: hi } : null;
+}
+
+export function buildTreeFilters({ categories, qualities, exteriors, statTrak, selectedFloats }) {
     const filters = [];
 
     categories.forEach(cat => {
@@ -21,18 +45,20 @@ export function buildTreeFilters({ categories, qualities, exteriors, statTrak, f
         filters.push(`exterior[]=${val}`);
     });
     statTrak.forEach(s => filters.push(`category_0[]=${s}`));
-    if (floatFrom && parseFloat(floatFrom) >= 0) {
-        filters.push(`floatValueFrom[]=${parseFloat(floatFrom)}`);
-    }
-    if (floatTo && parseFloat(floatTo) <= 1) {
-        filters.push(`floatValueTo[]=${parseFloat(floatTo)}`);
+
+    const range = getFloatRangeFromTokens(selectedFloats);
+    if (range) {
+        filters.push(`floatValueFrom[]=${range.floatFrom}`);
+        filters.push(`floatValueTo[]=${range.floatTo}`);
     }
 
     return filters.join(',');
 }
 
-export function filterSalesClientSide(sales, { exteriors, floatFrom, floatTo }) {
-    if (exteriors.length === 0 && !floatFrom && !floatTo) return sales;
+export function filterSalesClientSide(sales, { exteriors, selectedFloats }) {
+    if (exteriors.length === 0 && (!selectedFloats || selectedFloats.length === 0)) return sales;
+
+    const tokenRanges = (selectedFloats || []).map(t => parsedRange(t)).filter(Boolean);
 
     return sales.filter(sale => {
         const attrs = sale.offerAttributes || sale.orderAttributes || {};
@@ -44,12 +70,11 @@ export function filterSalesClientSide(sales, { exteriors, floatFrom, floatTo }) 
             }
         }
 
-        if (floatFrom || floatTo) {
+        if (tokenRanges.length > 0) {
             const fv = attrs.floatValue ?? attrs.float;
             if (fv !== undefined) {
                 const f = parseFloat(fv);
-                if (f < (floatFrom ? parseFloat(floatFrom) : 0)) return false;
-                if (f > (floatTo ? parseFloat(floatTo) : 1)) return false;
+                if (!tokenRanges.some(r => f >= r.min && f <= r.max)) return false;
             }
         }
 
