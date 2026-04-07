@@ -33,5 +33,11 @@ contextBridge.exposeInMainWorld('electronAPI', {
             ipcRenderer.on('updater-event', listener);
             return () => ipcRenderer.removeListener('updater-event', listener);
         }
+    },
+    logger: {
+        write: (entry) => ipcRenderer.invoke('log-write', entry),
+        read: (options) => ipcRenderer.invoke('log-read', options),
+        listFiles: () => ipcRenderer.invoke('log-list-files'),
+        getPath: () => ipcRenderer.invoke('log-get-path')
     }
 });

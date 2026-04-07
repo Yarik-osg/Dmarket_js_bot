@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import { SkinThumbWithHoverPreview } from '../SkinThumbWithHoverPreview.jsx';
-import { DMarketProductLinkButton } from '../DMarketProductLinkButton.jsx';
 
 function getTargetImageUrl(target) {
     return (
@@ -50,7 +49,6 @@ export function TargetItemTitleCell({
                             <span className="target-item-title-text" title={title}>
                                 {title}
                             </span>
-                            <DMarketProductLinkButton item={target} className="target-item-dmarket-btn" />
                         </div>
                         {(floatPartValue !== 'N/A' || phase || (paintSeed && paintSeed !== 0)) && (
                             <div

@@ -49,8 +49,14 @@ export class DMarketClient {
                 // For GET, add params to URL
                 const params = new URLSearchParams();
                 for (const [key, value] of Object.entries(payload)) {
-                    if (value !== null && value !== undefined) {
-                        // Convert to string to ensure proper encoding
+                    if (value === null || value === undefined) continue;
+                    if (Array.isArray(value)) {
+                        for (const item of value) {
+                            if (item !== null && item !== undefined) {
+                                params.append(key, String(item));
+                            }
+                        }
+                    } else {
                         params.append(key, String(value));
                     }
                 }

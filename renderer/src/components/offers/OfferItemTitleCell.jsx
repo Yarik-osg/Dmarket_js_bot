@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import { SkinThumbWithHoverPreview } from '../SkinThumbWithHoverPreview.jsx';
-import { DMarketProductLinkButton } from '../DMarketProductLinkButton.jsx';
 
 function getOfferImageUrl(offer) {
     return offer?.image || offer?.Image || offer?.extra?.image || offer?.thumbnail || null;
@@ -27,7 +26,6 @@ export function OfferItemTitleCell({ offer, title }) {
                     <span className="offer-item-title-text" title={title}>
                         {title}
                     </span>
-                    <DMarketProductLinkButton item={offer} className="offer-item-dmarket-btn" />
                 </div>
             </div>
         </div>

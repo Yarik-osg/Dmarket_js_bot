@@ -1,6 +1,7 @@
-import { app, BrowserWindow, ipcMain, shell } from 'electron';
+import { app, BrowserWindow, ipcMain, shell, Menu } from 'electron';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
+import { writeFile, mkdir, readdir, unlink, stat } from 'fs/promises';
 import Store from 'electron-store';
 import electronUpdater from 'electron-updater';
 import { checkMacUpdate, downloadMacUpdate } from './updater/macGithub.js';
@@ -47,6 +48,97 @@ ipcMain.handle('shell-open-external', async (event, url) => {
     } catch (e) {
         return { ok: false, error: e?.message || String(e) };
     }
+});
+
+// --- Persistent file logging ---
+const LOG_DIR = join(app.getPath('userData'), 'logs');
+const MAX_LOG_FILES = 7;
+const MAX_LOG_SIZE = 5 * 1024 * 1024; // 5MB per file
+
+function getLogFileName() {
+    const d = new Date();
+    const pad = (n) => String(n).padStart(2, '0');
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}.log`;
+}
+
+async function ensureLogDir() {
+    try {
+        await mkdir(LOG_DIR, { recursive: true });
+    } catch { /* exists */ }
+}
+
+async function rotateLogsIfNeeded() {
+    try {
+        const files = (await readdir(LOG_DIR))
+            .filter(f => f.endsWith('.log'))
+            .sort();
+        while (files.length > MAX_LOG_FILES) {
+            const oldest = files.shift();
+            await unlink(join(LOG_DIR, oldest));
+        }
+    } catch { /* ignore */ }
+}
+
+let logBuffer = [];
+let flushTimer = null;
+
+async function flushLogs() {
+    if (logBuffer.length === 0) return;
+    const batch = logBuffer.splice(0);
+    const filePath = join(LOG_DIR, getLogFileName());
+    try {
+        await ensureLogDir();
+        const content = batch.join('\n') + '\n';
+        const { appendFile } = await import('fs/promises');
+        await appendFile(filePath, content, 'utf-8');
+        const s = await stat(filePath).catch(() => null);
+        if (s && s.size > MAX_LOG_SIZE) {
+            await rotateLogsIfNeeded();
+        }
+    } catch (e) {
+        console.error('Failed to write log:', e);
+    }
+}
+
+ipcMain.handle('log-write', async (_event, entry) => {
+    const ts = new Date().toISOString();
+    const line = `[${ts}] [${entry.type || 'info'}] [${entry.category || 'general'}] ${entry.message}${entry.details ? ' | ' + JSON.stringify(entry.details) : ''}`;
+    logBuffer.push(line);
+    if (!flushTimer) {
+        flushTimer = setTimeout(() => {
+            flushTimer = null;
+            flushLogs();
+        }, 2000);
+    }
+    return { ok: true };
+});
+
+ipcMain.handle('log-read', async (_event, { date, limit } = {}) => {
+    try {
+        await ensureLogDir();
+        const fileName = date ? `${date}.log` : getLogFileName();
+        const filePath = join(LOG_DIR, fileName);
+        const { readFile } = await import('fs/promises');
+        const content = await readFile(filePath, 'utf-8');
+        const lines = content.trim().split('\n');
+        return { ok: true, lines: limit ? lines.slice(-limit) : lines };
+    } catch {
+        return { ok: true, lines: [] };
+    }
+});
+
+ipcMain.handle('log-list-files', async () => {
+    try {
+        await ensureLogDir();
+        const files = (await readdir(LOG_DIR)).filter(f => f.endsWith('.log')).sort().reverse();
+        return { ok: true, files };
+    } catch {
+        return { ok: true, files: [] };
+    }
+});
+
+ipcMain.handle('log-get-path', () => {
+    return { ok: true, path: LOG_DIR };
 });
 
 function sendUpdaterEvent(payload) {
@@ -202,6 +294,25 @@ function createWindow() {
                 console.error('Failed to load from dist:', err);
             });
         }
+
+        // Context menu for copy/paste on right-click
+        mainWindow.webContents.on('context-menu', (_event, params) => {
+            const menuItems = [];
+            if (params.selectionText) {
+                menuItems.push({ label: 'Копіювати', role: 'copy' });
+            }
+            if (params.isEditable) {
+                menuItems.push(
+                    { label: 'Вирізати', role: 'cut' },
+                    { label: 'Вставити', role: 'paste' },
+                    { type: 'separator' },
+                    { label: 'Виділити все', role: 'selectAll' }
+                );
+            }
+            if (params.selectionText || params.isEditable) {
+                Menu.buildFromTemplate(menuItems).popup({ window: mainWindow });
+            }
+        });
 
         mainWindow.on('closed', () => {
             mainWindow = null;

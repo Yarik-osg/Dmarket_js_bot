@@ -1,0 +1,484 @@
+/* Price History Overlay */
+.price-history-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.6);
+    backdrop-filter: blur(4px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+    animation: fadeIn 0.15s ease-out;
+}
+
+.price-history-modal {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-xl);
+    padding: 24px;
+    max-width: 480px;
+    width: 90%;
+    max-height: 90vh;
+    overflow-y: auto;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+}
+
+.price-history-modal-lg {
+    max-width: 900px;
+}
+
+.price-history-modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 16px;
+    gap: 12px;
+}
+
+.price-history-modal-header h3 {
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--text-primary);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    max-width: 700px;
+}
+
+.price-history-meta {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    margin-top: 6px;
+    font-size: 13px;
+    color: var(--text-secondary);
+    flex-wrap: wrap;
+}
+
+.price-history-meta .positive { color: var(--success-color); font-weight: 600; }
+.price-history-meta .negative { color: var(--error-color); font-weight: 600; }
+
+.price-history-count {
+    background: var(--bg-tertiary);
+    padding: 2px 8px;
+    border-radius: 10px;
+    font-size: 11px;
+    font-weight: 600;
+}
+
+.price-history-close {
+    background: none;
+    border: none;
+    color: var(--text-secondary);
+    font-size: 22px;
+    cursor: pointer;
+    padding: 4px;
+    border-radius: 6px;
+    transition: all 0.2s;
+    flex-shrink: 0;
+}
+
+.price-history-close:hover {
+    color: var(--text-primary);
+    background: var(--bg-tertiary);
+}
+
+/* Controls row: time range + filter toggle */
+.ph-controls-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 12px;
+}
+
+.ph-time-range-btns {
+    display: flex;
+    gap: 4px;
+    background: var(--bg-tertiary);
+    border-radius: var(--radius-md);
+    padding: 3px;
+}
+
+.ph-time-btn {
+    padding: 5px 14px;
+    border: none;
+    border-radius: var(--radius-sm);
+    background: transparent;
+    color: var(--text-secondary);
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.15s;
+}
+
+.ph-time-btn:hover {
+    color: var(--text-primary);
+}
+
+.ph-time-btn.active {
+    background: var(--accent-color);
+    color: #fff;
+}
+
+.ph-time-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+/* Float sub-range filters (avg-sales-graph) */
+.ph-float-filter {
+    margin-bottom: 14px;
+    padding: 10px 12px;
+    background: var(--bg-tertiary);
+    border-radius: var(--radius-md);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.ph-float-filter-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    margin-bottom: 6px;
+}
+
+.ph-float-filter-label {
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--text-primary);
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+}
+
+.ph-float-filter-actions {
+    display: flex;
+    gap: 10px;
+}
+
+.ph-float-filter-link {
+    padding: 0;
+    border: none;
+    background: none;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--accent-color);
+    cursor: pointer;
+}
+
+.ph-float-filter-link:hover:not(:disabled) {
+    text-decoration: underline;
+}
+
+.ph-float-filter-link:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+}
+
+.ph-float-filter-hint {
+    margin: 0 0 10px;
+    font-size: 11px;
+    line-height: 1.4;
+    color: var(--text-tertiary);
+}
+
+.ph-float-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.ph-float-chip {
+    display: inline-flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 1px;
+    padding: 5px 8px;
+    border-radius: var(--radius-sm);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    background: rgba(0, 0, 0, 0.2);
+    color: var(--text-secondary);
+    cursor: pointer;
+    transition: background 0.15s, border-color 0.15s, color 0.15s;
+    text-align: left;
+    line-height: 1.15;
+}
+
+.ph-float-chip:hover:not(:disabled) {
+    border-color: rgba(255, 255, 255, 0.18);
+    color: var(--text-primary);
+}
+
+.ph-float-chip.active {
+    border-color: var(--accent-color);
+    background: rgba(59, 130, 246, 0.12);
+    color: var(--text-primary);
+}
+
+.ph-float-chip:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+}
+
+.ph-float-chip-id {
+    font-size: 11px;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+}
+
+.ph-float-chip-range {
+    font-size: 10px;
+    color: var(--text-tertiary);
+    font-variant-numeric: tabular-nums;
+}
+
+.ph-float-chip.active .ph-float-chip-range {
+    color: var(--text-secondary);
+}
+
+/* Stats row */
+.price-history-stats-row {
+    display: flex;
+    gap: 12px;
+    margin-bottom: 14px;
+}
+
+.price-history-stat {
+    flex: 1;
+    background: var(--bg-tertiary);
+    border-radius: var(--radius-md);
+    padding: 8px 12px;
+    text-align: center;
+}
+
+.price-history-stat-label {
+    display: block;
+    font-size: 11px;
+    color: var(--text-tertiary);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 3px;
+}
+
+.price-history-stat-value {
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--text-primary);
+}
+
+.price-history-chart-wrap {
+    background: rgba(255, 255, 255, 0.02);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    border-radius: var(--radius-lg);
+    padding: 12px;
+}
+
+.price-history-empty {
+    text-align: center;
+    padding: 40px;
+    color: var(--text-secondary);
+    font-size: 14px;
+}
+
+.price-history-spinner {
+    animation: spin 1s linear infinite;
+    display: inline-block;
+    font-size: 20px;
+    margin-right: 6px;
+}
+
+@keyframes spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+
+/* Price History Panel */
+.price-history-panel {
+    padding: 0;
+}
+
+.price-history-panel-header {
+    display: flex;
+    flex-direction: column;
+    margin-bottom: 16px;
+    gap: 4px;
+}
+
+.price-history-panel-header h3 {
+    font-size: 17px;
+    font-weight: 700;
+    color: var(--text-primary);
+}
+
+.price-history-search-row {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 20px;
+    align-items: center;
+}
+
+.price-history-search {
+    flex: 1;
+    padding: 10px 14px;
+    border: 2px solid var(--border-color);
+    border-radius: var(--radius-md);
+    background: var(--bg-secondary);
+    color: var(--text-primary);
+    font-size: 13px;
+    transition: border-color 0.2s;
+}
+
+.price-history-search:focus {
+    border-color: var(--accent-color);
+    outline: none;
+}
+
+.price-history-search-btn {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 10px 18px;
+    white-space: nowrap;
+    font-size: 13px;
+}
+
+.price-history-section {
+    margin-bottom: 20px;
+}
+
+.price-history-section-label {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 12px;
+}
+
+/* Result group (one per base item) */
+.ph-result-group {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-lg);
+    padding: 14px 16px;
+    margin-bottom: 12px;
+}
+
+.ph-result-group-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 12px;
+}
+
+.ph-result-group-title {
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--text-primary);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.price-history-item-img {
+    width: 48px;
+    height: 48px;
+    object-fit: contain;
+    flex-shrink: 0;
+    border-radius: 6px;
+    background: rgba(255, 255, 255, 0.03);
+}
+
+/* Exterior cards row */
+.ph-exterior-cards {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.ph-exterior-card {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 3px;
+    padding: 8px 14px;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    background: var(--bg-tertiary);
+    cursor: pointer;
+    transition: all 0.15s ease;
+    min-width: 90px;
+}
+
+.ph-exterior-card:hover {
+    border-color: var(--accent-color);
+    background: rgba(59, 130, 246, 0.08);
+    transform: translateY(-1px);
+    box-shadow: 0 2px 10px rgba(59, 130, 246, 0.15);
+}
+
+.ph-exterior-card-label {
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--accent-color);
+}
+
+.ph-exterior-card-name {
+    font-size: 10px;
+    color: var(--text-tertiary);
+    white-space: nowrap;
+}
+
+.ph-exterior-card-price {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+/* Recent searches */
+.price-history-recent-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.price-history-recent-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 14px;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: 20px;
+    color: var(--text-secondary);
+    font-size: 12px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.price-history-recent-item:hover {
+    border-color: var(--accent-color);
+    color: var(--accent-color);
+    background: rgba(59, 130, 246, 0.08);
+}
+
+.price-history-recent-item span {
+    max-width: 200px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.price-history-empty-panel {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 48px;
+    color: var(--text-secondary);
+    font-size: 14px;
+    text-align: center;
+    background: var(--bg-secondary);
+    border: 2px dashed var(--border-color);
+    border-radius: var(--radius-lg);
+}

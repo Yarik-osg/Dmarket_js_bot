@@ -1,11 +1,13 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
 import { useLogs } from '../contexts/LogsContext.jsx';
 import { 
     RiCheckboxCircleLine, 
     RiCloseCircleLine, 
     RiAlertLine, 
     RiInformationLine,
-    RiFileTextLine 
+    RiFileTextLine,
+    RiFolderOpenLine,
+    RiHistoryLine
 } from 'react-icons/ri';
 import '../styles/LogsList.css';
 
@@ -13,6 +15,42 @@ function LogsList() {
     const { logs, clearLogs } = useLogs();
     const [filter, setFilter] = useState({ type: 'all', category: 'all' });
     const [searchQuery, setSearchQuery] = useState('');
+    const [logFiles, setLogFiles] = useState([]);
+    const [showHistory, setShowHistory] = useState(false);
+    const [historyLines, setHistoryLines] = useState([]);
+    const [selectedFile, setSelectedFile] = useState('');
+    const [historyLoading, setHistoryLoading] = useState(false);
+
+    const loadLogFiles = useCallback(async () => {
+        if (!window.electronAPI?.logger) return;
+        const result = await window.electronAPI.logger.listFiles();
+        if (result.ok) setLogFiles(result.files);
+    }, []);
+
+    const loadLogFile = useCallback(async (fileName) => {
+        if (!window.electronAPI?.logger) return;
+        setHistoryLoading(true);
+        setSelectedFile(fileName);
+        const date = fileName.replace('.log', '');
+        const result = await window.electronAPI.logger.read({ date, limit: 500 });
+        if (result.ok) setHistoryLines(result.lines);
+        setHistoryLoading(false);
+    }, []);
+
+    const toggleHistory = useCallback(async () => {
+        if (!showHistory) {
+            await loadLogFiles();
+        }
+        setShowHistory(prev => !prev);
+    }, [showHistory, loadLogFiles]);
+
+    const openLogFolder = useCallback(async () => {
+        if (!window.electronAPI?.logger) return;
+        const result = await window.electronAPI.logger.getPath();
+        if (result.ok && result.path) {
+            window.electronAPI?.openExternal?.(`https://dummy`).catch(() => {});
+        }
+    }, []);
 
     const filteredLogs = useMemo(() => {
         return logs.filter(log => {
@@ -105,8 +143,54 @@ function LogsList() {
                     <button onClick={clearLogs} className="btn btn-secondary">
                         Очистити логи
                     </button>
+                    {window.electronAPI?.logger && (
+                        <button onClick={toggleHistory} className={`btn ${showHistory ? 'btn-primary' : 'btn-secondary'}`}>
+                            <RiHistoryLine style={{ marginRight: 4 }} />
+                            Історія
+                        </button>
+                    )}
                 </div>
             </div>
+
+            {showHistory && (
+                <div className="logs-history-panel">
+                    <div className="logs-history-header">
+                        <h3>Збережені логи</h3>
+                        <span style={{ color: 'var(--text-secondary)', fontSize: '12px' }}>
+                            Логи зберігаються у файлову систему (останні {logFiles.length} файлів)
+                        </span>
+                    </div>
+                    <div className="logs-history-files">
+                        {logFiles.map(f => (
+                            <button
+                                key={f}
+                                className={`logs-history-file ${selectedFile === f ? 'active' : ''}`}
+                                onClick={() => loadLogFile(f)}
+                            >
+                                {f.replace('.log', '')}
+                            </button>
+                        ))}
+                        {logFiles.length === 0 && (
+                            <span style={{ color: 'var(--text-tertiary)', fontSize: '13px' }}>
+                                Немає збережених файлів логів
+                            </span>
+                        )}
+                    </div>
+                    {selectedFile && (
+                        <div className="logs-history-content">
+                            {historyLoading ? (
+                                <div className="logs-empty">Завантаження...</div>
+                            ) : historyLines.length > 0 ? (
+                                <pre className="logs-history-pre">
+                                    {historyLines.join('\n')}
+                                </pre>
+                            ) : (
+                                <div className="logs-empty">Файл порожній</div>
+                            )}
+                        </div>
+                    )}
+                </div>
+            )}
 
             <div className="logs-stats">
                 <span>Всього логів: {logs.length}</span>

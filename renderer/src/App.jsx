@@ -1,7 +1,7 @@
 import React, { useEffect } from 'react';
 import { MantineProvider, createTheme } from '@mantine/core';
+import { ErrorBoundary } from 'react-error-boundary';
 
-/** Палітра slate як у main.css (--bg-primary …), без «чистого» чорного Mantine */
 const mantineTheme = createTheme({
     primaryColor: 'blue',
     defaultRadius: 'md',
@@ -29,7 +29,121 @@ import { NotificationProvider, useNotifications } from './contexts/NotificationC
 import { AnalyticsProvider } from './contexts/AnalyticsContext.jsx';
 import MainLayout from './components/Layout/MainLayout.jsx';
 
-// Component to expose notification context globally for LogsContext
+function ErrorFallback({ error, resetErrorBoundary }) {
+    return (
+        <div style={{
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+            height: '100vh',
+            background: '#0f172a',
+            color: '#f1f5f9',
+            padding: '40px',
+            textAlign: 'center'
+        }}>
+            <div style={{
+                background: 'rgba(239, 68, 68, 0.1)',
+                border: '1px solid rgba(239, 68, 68, 0.3)',
+                borderRadius: '12px',
+                padding: '32px',
+                maxWidth: '600px',
+                width: '100%'
+            }}>
+                <h2 style={{ color: '#ef4444', marginBottom: '16px', fontSize: '24px' }}>
+                    Щось пішло не так
+                </h2>
+                <p style={{ color: '#94a3b8', marginBottom: '16px', fontSize: '14px' }}>
+                    Виникла неочікувана помилка. Спробуйте перезавантажити додаток.
+                </p>
+                <details style={{
+                    textAlign: 'left',
+                    marginBottom: '20px',
+                    background: 'rgba(0,0,0,0.3)',
+                    borderRadius: '8px',
+                    padding: '12px'
+                }}>
+                    <summary style={{ cursor: 'pointer', color: '#94a3b8', fontSize: '13px' }}>
+                        Деталі помилки
+                    </summary>
+                    <pre style={{
+                        color: '#ef4444',
+                        fontSize: '12px',
+                        marginTop: '8px',
+                        whiteSpace: 'pre-wrap',
+                        wordBreak: 'break-word',
+                        userSelect: 'text'
+                    }}>
+                        {error.message}
+                        {error.stack && `\n\n${error.stack}`}
+                    </pre>
+                </details>
+                <button
+                    onClick={resetErrorBoundary}
+                    style={{
+                        background: 'linear-gradient(135deg, #3b82f6, #06b6d4)',
+                        border: 'none',
+                        borderRadius: '8px',
+                        padding: '12px 32px',
+                        color: 'white',
+                        fontSize: '14px',
+                        fontWeight: '600',
+                        cursor: 'pointer'
+                    }}
+                >
+                    Спробувати знову
+                </button>
+            </div>
+        </div>
+    );
+}
+
+function TabErrorFallback({ error, resetErrorBoundary }) {
+    return (
+        <div style={{
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '60px 40px',
+            textAlign: 'center'
+        }}>
+            <div style={{
+                background: 'rgba(239, 68, 68, 0.1)',
+                border: '1px solid rgba(239, 68, 68, 0.3)',
+                borderRadius: '12px',
+                padding: '24px',
+                maxWidth: '500px',
+                width: '100%'
+            }}>
+                <h3 style={{ color: '#ef4444', marginBottom: '12px', fontSize: '18px' }}>
+                    Помилка у цій вкладці
+                </h3>
+                <p style={{ color: '#94a3b8', marginBottom: '16px', fontSize: '13px' }}>
+                    {error.message}
+                </p>
+                <button
+                    onClick={resetErrorBoundary}
+                    style={{
+                        background: 'linear-gradient(135deg, #3b82f6, #06b6d4)',
+                        border: 'none',
+                        borderRadius: '8px',
+                        padding: '10px 24px',
+                        color: 'white',
+                        fontSize: '13px',
+                        fontWeight: '600',
+                        cursor: 'pointer'
+                    }}
+                >
+                    Перезавантажити вкладку
+                </button>
+            </div>
+        </div>
+    );
+}
+
+export { TabErrorFallback };
+
 function NotificationContextExposer() {
     const notificationContext = useNotifications();
     
@@ -44,26 +158,27 @@ function NotificationContextExposer() {
 }
 
 function App() {
-    // Встановлюємо темну тему за замовчуванням
     useEffect(() => {
         document.documentElement.setAttribute('data-theme', 'dark');
     }, []);
 
     return (
-        <MantineProvider defaultColorScheme="dark" theme={mantineTheme}>
-            <LocaleProvider>
-                <AuthProvider>
-                    <NotificationProvider>
-                        <NotificationContextExposer />
-                        <AnalyticsProvider>
-                            <LogsProvider>
-                                <MainLayout />
-                            </LogsProvider>
-                        </AnalyticsProvider>
-                    </NotificationProvider>
-                </AuthProvider>
-            </LocaleProvider>
-        </MantineProvider>
+        <ErrorBoundary FallbackComponent={ErrorFallback} onReset={() => window.location.reload()}>
+            <MantineProvider defaultColorScheme="dark" theme={mantineTheme}>
+                <LocaleProvider>
+                    <AuthProvider>
+                        <NotificationProvider>
+                            <NotificationContextExposer />
+                            <AnalyticsProvider>
+                                <LogsProvider>
+                                    <MainLayout />
+                                </LogsProvider>
+                            </AnalyticsProvider>
+                        </NotificationProvider>
+                    </AuthProvider>
+                </LocaleProvider>
+            </MantineProvider>
+        </ErrorBoundary>
     );
 }
 

@@ -4,7 +4,7 @@ const LogsContext = createContext();
 
 export function LogsProvider({ children }) {
     const [logs, setLogs] = useState([]);
-    const MAX_LOGS = 1000; // Максимальна кількість логів
+    const MAX_LOGS = 1000;
 
     const addLog = useCallback((log) => {
         const timestamp = new Date().toLocaleString('uk-UA', {
@@ -19,8 +19,8 @@ export function LogsProvider({ children }) {
         const newLog = {
             id: Date.now() + Math.random(),
             timestamp,
-            type: log.type || 'info', // 'info', 'success', 'warning', 'error'
-            category: log.category || 'general', // 'target', 'offer', 'parsing', 'system'
+            type: log.type || 'info',
+            category: log.category || 'general',
             message: log.message || '',
             details: log.details || null,
             ...log
@@ -28,14 +28,22 @@ export function LogsProvider({ children }) {
 
         setLogs(prev => {
             const updated = [newLog, ...prev];
-            // Обмежуємо кількість логів
             if (updated.length > MAX_LOGS) {
                 return updated.slice(0, MAX_LOGS);
             }
             return updated;
         });
 
-        // Send notification for errors - use global reference set by App
+        // Persist to file via main process
+        if (window.electronAPI?.logger) {
+            window.electronAPI.logger.write({
+                type: newLog.type,
+                category: newLog.category,
+                message: newLog.message,
+                details: newLog.details
+            }).catch(() => {});
+        }
+
         if (log.type === 'error' && window.notificationContext) {
             try {
                 window.notificationContext.showNotification({

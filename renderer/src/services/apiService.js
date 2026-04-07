@@ -180,6 +180,11 @@ class ApiService {
         return await this.client.call('GET', path, params);
     }
 
+    async getAvgSalesGraph(params) {
+        const path = '/trade-aggregator/v1/avg-sales-graph';
+        return await this.client.call('GET', path, params);
+    }
+
     // Exchange API - User Data
     async getUserOffers(params = {}) {
         const path = '/exchange/v1/user/offers';

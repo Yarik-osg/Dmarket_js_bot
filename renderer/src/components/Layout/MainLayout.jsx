@@ -1,9 +1,11 @@
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
+import { ErrorBoundary } from 'react-error-boundary';
 import { useAuth } from '../../contexts/AuthContext.jsx';
 import { useAnalytics } from '../../contexts/AnalyticsContext.jsx';
 import { useNotifications } from '../../contexts/NotificationContext.jsx';
 import { ApiService } from '../../services/apiService.js';
 import { TransactionMonitor } from '../../services/transactionMonitor.js';
+import { useKeyboardShortcuts } from '../../hooks/useKeyboardShortcuts.js';
 import Sidebar from './Sidebar.jsx';
 import TargetsList from '../TargetsList.jsx';
 import OffersList from '../OffersList.jsx';
@@ -12,6 +14,7 @@ import Settings from '../Settings.jsx';
 import Analytics from '../Analytics.jsx';
 import Notifications from '../Notifications.jsx';
 import AuthScreen from '../AuthScreen.jsx';
+import { TabErrorFallback } from '../../App.jsx';
 import '../../styles/MainLayout.css';
 import {
     GITHUB_RELEASES_INDEX,
@@ -221,6 +224,10 @@ function MainLayout() {
         }
     };
 
+    useKeyboardShortcuts({
+        onTabChange: setActiveTab,
+    });
+
     const updaterPanel =
         window.electronAPI?.updater
             ? {
@@ -269,23 +276,32 @@ function MainLayout() {
                 onToggleOffersParsing={() => setIsOffersParsingEnabled(prev => !prev)}
             />
             <div className="main-content">
-                {/* Always render stateful components, hide with CSS to preserve state */}
                 <div style={{ display: activeTab === 'orders' ? 'block' : 'none' }}>
-                    <TargetsList 
-                        isAutoUpdatingEnabled={isTargetsParsingEnabled}
-                        onToggleAutoUpdate={() => setIsTargetsParsingEnabled(prev => !prev)}
-                    />
+                    <ErrorBoundary FallbackComponent={TabErrorFallback}>
+                        <TargetsList 
+                            isAutoUpdatingEnabled={isTargetsParsingEnabled}
+                            onToggleAutoUpdate={() => setIsTargetsParsingEnabled(prev => !prev)}
+                        />
+                    </ErrorBoundary>
                 </div>
                 <div style={{ display: activeTab === 'offers' ? 'block' : 'none' }}>
-                    <OffersList 
-                        isAutoUpdatingEnabled={isOffersParsingEnabled}
-                        onToggleAutoUpdate={() => setIsOffersParsingEnabled(prev => !prev)}
-                    />
+                    <ErrorBoundary FallbackComponent={TabErrorFallback}>
+                        <OffersList 
+                            isAutoUpdatingEnabled={isOffersParsingEnabled}
+                            onToggleAutoUpdate={() => setIsOffersParsingEnabled(prev => !prev)}
+                        />
+                    </ErrorBoundary>
                 </div>
                 <div style={{ display: activeTab === 'analytics' ? 'block' : 'none' }}>
-                    <Analytics />
+                    <ErrorBoundary FallbackComponent={TabErrorFallback}>
+                        <Analytics />
+                    </ErrorBoundary>
                 </div>
-                {activeTab !== 'orders' && activeTab !== 'offers' && activeTab !== 'analytics' && renderSwitchContent()}
+                {activeTab !== 'orders' && activeTab !== 'offers' && activeTab !== 'analytics' && (
+                    <ErrorBoundary FallbackComponent={TabErrorFallback} resetKeys={[activeTab]}>
+                        {renderSwitchContent()}
+                    </ErrorBoundary>
+                )}
             </div>
         </div>
     );

@@ -4,6 +4,16 @@
     box-sizing: border-box;
 }
 
+body {
+    -webkit-user-select: text;
+    user-select: text;
+}
+
+button, .sidebar-item, .parsing-btn, .analytics-tab {
+    -webkit-user-select: none;
+    user-select: none;
+}
+
 :root[data-theme="light"] {
     --bg-primary: #ffffff;
     --bg-secondary: #f8fafc;

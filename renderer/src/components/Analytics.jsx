@@ -8,6 +8,8 @@ import {
     BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, Cell
 } from 'recharts';
 import LiquidityAnalyzer from './LiquidityAnalyzer.jsx';
+import PnLDashboard from './PnLDashboard.jsx';
+import PriceHistoryPanel from './PriceHistoryChart.jsx';
 import '../styles/Analytics.css';
 import { formatUaTransactionsCount } from '../utils/formatUsd.js';
 
@@ -68,6 +70,18 @@ function Analytics() {
                         {t('analytics.tabStatistics')}
                     </button>
                     <button 
+                        className={`analytics-tab ${activeTab === 'pnl' ? 'active' : ''}`}
+                        onClick={() => setActiveTab('pnl')}
+                    >
+                        P&L
+                    </button>
+                    <button 
+                        className={`analytics-tab ${activeTab === 'priceHistory' ? 'active' : ''}`}
+                        onClick={() => setActiveTab('priceHistory')}
+                    >
+                        Історія цін
+                    </button>
+                    <button 
                         className={`analytics-tab ${activeTab === 'liquidity' ? 'active' : ''}`}
                         onClick={() => setActiveTab('liquidity')}
                     >
@@ -78,6 +92,14 @@ function Analytics() {
 
             <div style={{ display: activeTab === 'liquidity' ? 'block' : 'none' }}>
                 <LiquidityAnalyzer />
+            </div>
+
+            <div style={{ display: activeTab === 'pnl' ? 'block' : 'none' }}>
+                <PnLDashboard />
+            </div>
+
+            <div style={{ display: activeTab === 'priceHistory' ? 'block' : 'none' }}>
+                <PriceHistoryPanel />
             </div>
 
             <div style={{ display: activeTab === 'statistics' ? 'block' : 'none' }}>

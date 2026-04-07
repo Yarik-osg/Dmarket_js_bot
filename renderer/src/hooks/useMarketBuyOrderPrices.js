@@ -3,6 +3,7 @@ import { filterOrdersForTarget } from '../utils/targetOrdersFilter.js';
 import { formatHighestBuyOrderPrice } from '../utils/buyOrderDisplay.js';
 import { formatUsdFromApiCents } from '../utils/formatUsd.js';
 
+
 /**
  * Fetches competing buy-order best prices per target row (for "market" column).
  */
@@ -72,6 +73,7 @@ export function useMarketBuyOrderPrices({ apiService, targets, loading }) {
                 }
 
                 setMarketPrices(prices);
+
             } finally {
                 loadingPricesRef.current = false;
                 setLoadingMarketPrices(false);

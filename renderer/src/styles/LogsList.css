@@ -273,3 +273,74 @@
     overflow-y: auto;
     border: 2px solid var(--border-color);
 }
+
+/* Log History Panel */
+.logs-history-panel {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-lg);
+    padding: 16px;
+    margin-bottom: 16px;
+}
+
+.logs-history-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+}
+
+.logs-history-header h3 {
+    color: var(--text-primary);
+    font-size: 16px;
+    font-weight: 700;
+}
+
+.logs-history-files {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-bottom: 12px;
+}
+
+.logs-history-file {
+    padding: 6px 14px;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    background: var(--bg-tertiary);
+    color: var(--text-secondary);
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.logs-history-file:hover {
+    border-color: var(--accent-color);
+    color: var(--text-primary);
+}
+
+.logs-history-file.active {
+    background: var(--accent-color);
+    color: white;
+    border-color: var(--accent-color);
+}
+
+.logs-history-content {
+    max-height: 400px;
+    overflow: auto;
+    border-radius: var(--radius-md);
+    border: 1px solid var(--border-color);
+}
+
+.logs-history-pre {
+    margin: 0;
+    padding: 16px;
+    background: var(--bg-primary);
+    color: var(--text-secondary);
+    font-size: 12px;
+    line-height: 1.6;
+    white-space: pre-wrap;
+    word-break: break-word;
+    user-select: text;
+}

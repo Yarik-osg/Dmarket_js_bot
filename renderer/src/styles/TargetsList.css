@@ -486,6 +486,24 @@
     line-height: 1.4;
 }
 
+.target-item-chart-btn {
+    background: none;
+    border: none;
+    color: var(--text-tertiary);
+    font-size: 15px;
+    cursor: pointer;
+    padding: 2px;
+    border-radius: 4px;
+    transition: all 0.2s;
+    flex-shrink: 0;
+    line-height: 1;
+}
+
+.target-item-chart-btn:hover {
+    color: var(--accent-color);
+    background: var(--accent-light);
+}
+
 .active-target-status {
     display: inline-flex;
     align-items: center;

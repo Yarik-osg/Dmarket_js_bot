@@ -6,13 +6,16 @@ import {
     RiDeleteBin6Line,
     RiLayoutColumnLine,
     RiSkipForwardLine,
-    RiCheckLine
+    RiCheckLine,
+    RiLineChartLine
 } from 'react-icons/ri';
 import { OfferItemTitleCell } from './OfferItemTitleCell.jsx';
 import { OfferPriceCell } from './OfferPriceCell.jsx';
 import { MinPriceEditor } from './MinPriceEditor.jsx';
 import { OfferFloatCell } from './OfferFloatCell.jsx';
 import { OfferTradeLockCell } from './OfferTradeLockCell.jsx';
+import { DMarketProductLinkButton } from '../DMarketProductLinkButton.jsx';
+import { PriceHistoryModal } from '../PriceHistoryChart.jsx';
 import { formatUsdFromApiCents } from '../../utils/formatUsd.js';
 import { getOfferId, getOfferTitle } from '../../hooks/useOffers.js';
 
@@ -132,6 +135,8 @@ export function OffersTable({
     onDelete,
     unknownItemLabel
 }) {
+    const [priceHistoryTitle, setPriceHistoryTitle] = useState(null);
+
     const [sortStatus, setSortStatus] = useState({
         columnAccessor: 'itemTitle',
         direction: 'asc'
@@ -258,11 +263,21 @@ export function OffersTable({
                 accessor: 'actions',
                 title: t('offers.actions'),
                 sortable: false,
-                width: 100,
+                width: 160,
                 render: (offer) => {
                     const itemId = offer.itemId;
+                    const title = getOfferTitle(offer, unknownItemLabel);
                     return (
                         <div className="offer-actions">
+                            <button
+                                type="button"
+                                className="btn-icon"
+                                title="Історія цін"
+                                onClick={() => setPriceHistoryTitle(title)}
+                            >
+                                <RiLineChartLine size={18} />
+                            </button>
+                            <DMarketProductLinkButton item={offer} className="offer-item-dmarket-btn" />
                             <button
                                 type="button"
                                 className={
@@ -311,7 +326,8 @@ export function OffersTable({
             skipForParsing,
             onSkipChange,
             updating,
-            onDelete
+            onDelete,
+            setPriceHistoryTitle
         ]
     );
 
@@ -388,6 +404,13 @@ export function OffersTable({
                 noRecordsText=""
                 emptyState={filteredOffers.length === 0 ? emptyState : undefined}
             />
+
+            {priceHistoryTitle && (
+                <PriceHistoryModal
+                    itemTitle={priceHistoryTitle}
+                    onClose={() => setPriceHistoryTitle(null)}
+                />
+            )}
         </div>
     );
 }

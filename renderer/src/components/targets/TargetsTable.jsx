@@ -1,11 +1,13 @@
 import React, { useMemo, useState, useEffect, useCallback } from 'react';
 import { DataTable } from 'mantine-datatable';
 import { Button, Checkbox, Group, Menu, Text } from '@mantine/core';
-import { RiDeleteBin6Line, RiPlayCircleLine, RiPauseCircleLine, RiLayoutColumnLine } from 'react-icons/ri';
+import { RiDeleteBin6Line, RiPlayCircleLine, RiPauseCircleLine, RiLayoutColumnLine, RiLineChartLine } from 'react-icons/ri';
 import { TargetItemTitleCell } from './TargetItemTitleCell.jsx';
 import { MarketPriceCell } from './MarketPriceCell.jsx';
 import { MaxPriceEditor } from './MaxPriceEditor.jsx';
 import { QuantityEditor } from './QuantityEditor.jsx';
+import { DMarketProductLinkButton } from '../DMarketProductLinkButton.jsx';
+import { PriceHistoryModal } from '../PriceHistoryChart.jsx';
 import { formatUsdFromApiCents } from '../../utils/formatUsd.js';
 
 const COLUMN_STORAGE_KEY = 'targetsTableColumnVisibility';
@@ -126,6 +128,8 @@ export function TargetsTable({
     unknownItemLabel,
     marketLegendText
 }) {
+    const [priceHistoryTitle, setPriceHistoryTitle] = useState(null);
+
     const [sortStatus, setSortStatus] = useState({
         columnAccessor: 'itemTitle',
         direction: 'asc'
@@ -322,13 +326,23 @@ export function TargetsTable({
                 accessor: 'actions',
                 title: t('targets.actions'),
                 sortable: false,
-                width: 110,
+                width: 160,
                 textAlign: 'center',
                 render: (target) => {
                     const targetId = getTargetRowId(target);
+                    const title = getTitle(target, unknownItemLabel);
                     const status = target.status || 'N/A';
                     return (
                         <div className="target-actions">
+                            <button
+                                type="button"
+                                className="btn-icon"
+                                title="Історія цін"
+                                onClick={() => setPriceHistoryTitle(title)}
+                            >
+                                <RiLineChartLine size={18} />
+                            </button>
+                            <DMarketProductLinkButton item={target} className="target-item-dmarket-btn" />
                             {status === 'active' ? (
                                 <button
                                     type="button"
@@ -380,7 +394,8 @@ export function TargetsTable({
             updating,
             onDeactivate,
             onActivate,
-            onDelete
+            onDelete,
+            setPriceHistoryTitle
         ]
     );
 
@@ -474,6 +489,13 @@ export function TargetsTable({
                 noRecordsText=""
                 emptyState={filteredTargets.length === 0 ? emptyState : undefined}
             />
+
+            {priceHistoryTitle && (
+                <PriceHistoryModal
+                    itemTitle={priceHistoryTitle}
+                    onClose={() => setPriceHistoryTitle(null)}
+                />
+            )}
         </div>
     );
 }

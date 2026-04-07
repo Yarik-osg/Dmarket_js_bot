@@ -3,6 +3,7 @@ import { marketItemMatchesOfferWearAndPhase } from '../utils/offerMarketMatch.js
 import { formatUsdFromApiCents } from '../utils/formatUsd.js';
 import { getOfferId } from './useOffers.js';
 
+
 export function useOfferMarketPrices({ apiService, offers, loading }) {
     const [marketPrices, setMarketPrices] = useState({});
     const [loadingMarketPrices, setLoadingMarketPrices] = useState(false);
@@ -71,6 +72,7 @@ export function useOfferMarketPrices({ apiService, offers, loading }) {
                     }
                 }
                 setMarketPrices(prices);
+
             } finally {
                 loadingRef.current = false;
                 setLoadingMarketPrices(false);
