@@ -388,13 +388,70 @@
     font-size: 13px;
 }
 
-/* MinPriceEditor */
+/* MinPriceEditor / PriceBoundsEditor */
 .min-price-editor-wrap {
     display: flex;
     gap: 6px;
     align-items: center;
     min-width: 0;
     flex-wrap: nowrap;
+}
+
+.price-bounds-editor-wrap {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    min-width: 0;
+}
+
+.price-bounds-fields {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    flex: 1;
+    min-width: 0;
+}
+
+.price-bounds-editor-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    min-width: 0;
+}
+
+.price-bounds-label {
+    flex: 0 0 34px;
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text-tertiary);
+}
+
+.price-bounds-input {
+    flex: 1 1 auto;
+    min-width: 0;
+    max-width: 132px;
+}
+
+.price-bounds-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    flex-shrink: 0;
+    align-self: center;
+}
+
+.price-bounds-apply {
+    flex-shrink: 0;
+}
+
+.price-bounds-cancel {
+    flex-shrink: 0;
+    color: var(--text-secondary);
+}
+
+.price-bounds-cancel:hover:not(:disabled) {
+    color: var(--error-color);
+    background: rgba(239, 68, 68, 0.12);
 }
 
 .min-price-input {

@@ -36,6 +36,11 @@ function OffersList({ isAutoUpdatingEnabled = false, onToggleAutoUpdate }) {
         minPricesRef,
         pendingMinPrices,
         setPendingMinPrices,
+        maxPrices,
+        setMaxPrices,
+        maxPricesRef,
+        pendingMaxPrices,
+        setPendingMaxPrices,
         skipForParsing,
         setSkipForParsing,
         skipForParsingRef,
@@ -52,6 +57,7 @@ function OffersList({ isAutoUpdatingEnabled = false, onToggleAutoUpdate }) {
         apiService,
         offersRef,
         minPricesRef,
+        maxPricesRef,
         skipForParsingRef,
         flushToLocalStorage,
         loadOffers,
@@ -70,28 +76,113 @@ function OffersList({ isAutoUpdatingEnabled = false, onToggleAutoUpdate }) {
         await loadOffers();
     }, [loadOffers, flushToLocalStorage]);
 
-    const handleApplyMinPrice = useCallback(
-        async (itemId) => {
-            const pendingPrice = pendingMinPrices[itemId];
-            if (!pendingPrice || !itemId) return;
+    const handleApplyPriceBounds = useCallback(
+        (itemId) => {
+            const hasPendingMin = pendingMinPrices[itemId] !== undefined;
+            const hasPendingMax = pendingMaxPrices[itemId] !== undefined;
+            if (!hasPendingMin && !hasPendingMax) return;
 
-            setMinPrices((prev) => ({ ...prev, [itemId]: pendingPrice }));
+            const offer = offers.find((o) => o.itemId === itemId);
+            const minStr = hasPendingMin
+                ? pendingMinPrices[itemId]
+                : String(minPrices[itemId] ?? offer?.minPrice ?? '');
+            let maxStr;
+            if (hasPendingMax) {
+                maxStr = pendingMaxPrices[itemId];
+            } else {
+                maxStr = maxPrices[itemId];
+            }
+
+            const minNum = parseFloat(String(minStr).replace(',', '.'));
+            if (!String(minStr).trim() || isNaN(minNum) || minNum <= 0) {
+                showAlertModal({
+                    title: t('offers.error'),
+                    message: t('offers.priceBoundsInvalid')
+                });
+                return;
+            }
+            if (maxStr !== undefined && maxStr !== null && String(maxStr).trim() !== '') {
+                const maxNum = parseFloat(String(maxStr).replace(',', '.'));
+                if (isNaN(maxNum) || maxNum < minNum) {
+                    showAlertModal({
+                        title: t('offers.error'),
+                        message: t('offers.maxBelowMin')
+                    });
+                    return;
+                }
+            }
+
+            setMinPrices((prev) => ({ ...prev, [itemId]: String(minNum) }));
+            setMaxPrices((prev) => {
+                if (!hasPendingMax) return prev;
+                const next = { ...prev };
+                if (maxStr === undefined || maxStr === null || String(maxStr).trim() === '') {
+                    delete next[itemId];
+                } else {
+                    next[itemId] = String(
+                        parseFloat(String(maxStr).replace(',', '.'))
+                    );
+                }
+                return next;
+            });
             setPendingMinPrices((prev) => {
                 const next = { ...prev };
                 delete next[itemId];
                 return next;
             });
-            const offer = offers.find((o) => o.itemId === itemId);
+            setPendingMaxPrices((prev) => {
+                const next = { ...prev };
+                delete next[itemId];
+                return next;
+            });
+
             const title = offer?.title || 'Невідомий офер';
             addLog({
                 type: 'success',
                 category: 'offer',
-                message: `Мінімальна ціна встановлена: ${title}`,
-                details: { title, itemId, minPrice: pendingPrice }
+                message: `Діапазон цін для парсингу збережено: ${title}`,
+                details: {
+                    title,
+                    itemId,
+                    minPrice: String(minNum),
+                    maxPrice:
+                        maxStr !== undefined &&
+                        maxStr !== null &&
+                        String(maxStr).trim() !== ''
+                            ? String(maxStr)
+                            : undefined
+                }
             });
         },
-        [pendingMinPrices, offers, setMinPrices, setPendingMinPrices, addLog]
+        [
+            pendingMinPrices,
+            pendingMaxPrices,
+            minPrices,
+            maxPrices,
+            offers,
+            setMinPrices,
+            setMaxPrices,
+            setPendingMinPrices,
+            setPendingMaxPrices,
+            addLog,
+            t
+        ]
     );
+
+    const handleCancelPriceBounds = useCallback((itemId) => {
+        setPendingMinPrices((prev) => {
+            if (prev[itemId] === undefined) return prev;
+            const next = { ...prev };
+            delete next[itemId];
+            return next;
+        });
+        setPendingMaxPrices((prev) => {
+            if (prev[itemId] === undefined) return prev;
+            const next = { ...prev };
+            delete next[itemId];
+            return next;
+        });
+    }, [setPendingMinPrices, setPendingMaxPrices]);
 
     const handleDelete = useCallback(
         async (offer) => {
@@ -266,10 +357,16 @@ function OffersList({ isAutoUpdatingEnabled = false, onToggleAutoUpdate }) {
                 loadingTable={loadingTable}
                 minPrices={minPrices}
                 pendingMinPrices={pendingMinPrices}
+                maxPrices={maxPrices}
+                pendingMaxPrices={pendingMaxPrices}
                 onMinPricePendingChange={(itemId, val) =>
                     setPendingMinPrices((prev) => ({ ...prev, [itemId]: val }))
                 }
-                onApplyMinPrice={handleApplyMinPrice}
+                onMaxPricePendingChange={(itemId, val) =>
+                    setPendingMaxPrices((prev) => ({ ...prev, [itemId]: val }))
+                }
+                onApplyPriceBounds={handleApplyPriceBounds}
+                onCancelPriceBounds={handleCancelPriceBounds}
                 skipForParsing={skipForParsing}
                 onSkipChange={(itemId, checked) =>
                     setSkipForParsing((prev) => ({ ...prev, [itemId]: checked }))

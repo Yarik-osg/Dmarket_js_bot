@@ -2,10 +2,29 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { marketItemMatchesOfferWearAndPhase } from '../utils/offerMarketMatch.js';
 import { getOfferId } from './useOffers.js';
 
+function itemOfferPriceToCents(item) {
+    const price = item.price?.USD || item.price?.amount || item.price;
+    if (typeof price === 'string') {
+        const p = parseFloat(price);
+        return p >= 10 ? p : p * 100;
+    }
+    return price >= 10 ? price : price * 100;
+}
+
+function parseMaxPriceCents(raw, minPriceCents) {
+    if (raw === undefined || raw === null || String(raw).trim() === '') return null;
+    const m = parseFloat(String(raw));
+    if (isNaN(m) || m <= 0) return null;
+    const cents = Math.round(m * 100);
+    if (cents < minPriceCents) return null;
+    return cents;
+}
+
 export function useOfferAutoUpdate({
     apiService,
     offersRef,
     minPricesRef,
+    maxPricesRef,
     skipForParsingRef,
     flushToLocalStorage,
     loadOffers,
@@ -20,6 +39,7 @@ export function useOfferAutoUpdate({
     const autoUpdateOfferPrices = useCallback(async () => {
         const currentOffers = offersRef.current;
         const currentMinPrices = minPricesRef.current || {};
+        const currentMaxPrices = maxPricesRef.current || {};
         if (!apiService || currentOffers.length === 0 || isAutoUpdatingRef.current) return;
 
         isAutoUpdatingRef.current = true;
@@ -45,9 +65,14 @@ export function useOfferAutoUpdate({
                     const title = offer.title || offer.extra?.name;
                     const gameId = offer.gameId || 'a8db';
                     const minPrice = currentMinPrices[itemId] || offer.minPrice;
+                    const maxPriceRaw = currentMaxPrices[itemId];
                     const currentSkip = skipForParsingRef.current || {};
                     if (currentSkip[itemId] === true) continue;
                     if (!title || !offerId || !minPrice || !assetId) continue;
+
+                    const minPriceCents = parseFloat(minPrice) * 100;
+                    const maxPriceCents = parseMaxPriceCents(maxPriceRaw, minPriceCents);
+                    const hasMaxCap = maxPriceCents != null;
 
                     const marketData = await apiService.getMarketItems({
                         gameId,
@@ -56,13 +81,12 @@ export function useOfferAutoUpdate({
                         limit: 300
                     });
 
+                    let otherPrices = [];
                     if (marketData?.objects?.length > 0) {
                         const filtered = marketData.objects.filter((item) =>
                             marketItemMatchesOfferWearAndPhase(offer, item)
                         );
-                        const minPriceCents = parseFloat(minPrice) * 100;
-
-                        const otherPrices = filtered
+                        otherPrices = filtered
                             .filter((item) => {
                                 const ioid =
                                     item.extra?.offerId ||
@@ -76,107 +100,113 @@ export function useOfferAutoUpdate({
                                 const isOurByOwner = iown && ourOwnerIds.has(iown);
                                 return !isOurById && !isOurByOwner;
                             })
-                            .map((item) => {
-                                const price =
-                                    item.price?.USD || item.price?.amount || item.price;
-                                if (typeof price === 'string') {
-                                    const p = parseFloat(price);
-                                    return p >= 10 ? p : p * 100;
-                                }
-                                return price >= 10 ? price : price * 100;
-                            })
-                            .filter((p) => p > 0 && !isNaN(p) && p >= minPriceCents)
-                            .sort((a, b) => a - b);
+                            .map((item) => itemOfferPriceToCents(item))
+                            .filter((p) => p > 0 && !isNaN(p) && p >= minPriceCents);
+                        if (hasMaxCap) {
+                            otherPrices = otherPrices.filter((p) => p <= maxPriceCents);
+                        }
+                        otherPrices.sort((a, b) => a - b);
+                    }
 
-                        if (otherPrices.length > 0) {
-                            const lowestPrice = otherPrices[0];
-                            let newPriceCents = lowestPrice - 1;
-                            if (newPriceCents < minPriceCents) newPriceCents = minPriceCents;
-                            const newPriceFloat = parseFloat((newPriceCents / 100).toFixed(2));
+                    let currentPriceFloat = null;
+                    const curPrice = offer.price?.USD || offer.price?.amount || offer.price;
+                    if (curPrice !== undefined && curPrice !== null && curPrice !== 'N/A') {
+                        const n = typeof curPrice === 'string' ? parseFloat(curPrice) : curPrice;
+                        if (!isNaN(n)) currentPriceFloat = n >= 10 ? n : n / 100;
+                    }
 
-                            let currentPriceFloat = null;
-                            const curPrice =
-                                offer.price?.USD || offer.price?.amount || offer.price;
-                            if (
-                                curPrice !== undefined &&
-                                curPrice !== null &&
-                                curPrice !== 'N/A'
-                            ) {
-                                const n =
-                                    typeof curPrice === 'string'
-                                        ? parseFloat(curPrice)
-                                        : curPrice;
-                                if (!isNaN(n)) currentPriceFloat = n >= 10 ? n : n / 100;
-                            }
+                    let newPriceFloat;
+                    let logExtra = {};
 
-                            if (
-                                currentPriceFloat !== null &&
-                                Math.abs(newPriceFloat - currentPriceFloat) < 0.01
-                            )
-                                continue;
+                    if (otherPrices.length > 0) {
+                        const lowestPrice = otherPrices[0];
+                        let newPriceCents = lowestPrice - 1;
+                        newPriceCents = Math.max(minPriceCents, newPriceCents);
+                        if (hasMaxCap) {
+                            newPriceCents = Math.min(maxPriceCents, newPriceCents);
+                        }
+                        newPriceFloat = parseFloat((newPriceCents / 100).toFixed(2));
+                        logExtra = {
+                            mode: 'undercut',
+                            lowestPrice: (lowestPrice / 100).toFixed(2),
+                            minPrice,
+                            maxPrice: hasMaxCap ? String(maxPriceRaw) : undefined
+                        };
+                    } else if (hasMaxCap) {
+                        newPriceFloat = parseFloat((maxPriceCents / 100).toFixed(2));
+                        logExtra = {
+                            mode: 'fallbackMax',
+                            minPrice,
+                            maxPrice: String(maxPriceRaw)
+                        };
+                    } else {
+                        continue;
+                    }
 
-                            try {
-                                const response = await apiService.updateOffer(offerId, itemId, {
-                                    Price: { Amount: newPriceFloat, Currency: 'USD' }
-                                });
-                                if (response?.Result && Array.isArray(response.Result)) {
-                                    for (const ri of response.Result) {
-                                        const items = Array.isArray(ri) ? ri : [ri];
-                                        for (const it of items) {
-                                            if (it.Error || it.Successful === false) {
-                                                throw {
-                                                    errorCode:
-                                                        it.Error?.Code ||
-                                                        it.Code ||
-                                                        'UnknownError',
-                                                    message:
-                                                        it.Error?.Message ||
-                                                        it.Message ||
-                                                        'Помилка оновлення офера'
-                                                };
-                                            }
-                                        }
+                    if (
+                        currentPriceFloat !== null &&
+                        Math.abs(newPriceFloat - currentPriceFloat) < 0.01
+                    )
+                        continue;
+
+                    try {
+                        const response = await apiService.updateOffer(offerId, itemId, {
+                            Price: { Amount: newPriceFloat, Currency: 'USD' }
+                        });
+                        if (response?.Result && Array.isArray(response.Result)) {
+                            for (const ri of response.Result) {
+                                const items = Array.isArray(ri) ? ri : [ri];
+                                for (const it of items) {
+                                    if (it.Error || it.Successful === false) {
+                                        throw {
+                                            errorCode:
+                                                it.Error?.Code || it.Code || 'UnknownError',
+                                            message:
+                                                it.Error?.Message ||
+                                                it.Message ||
+                                                'Помилка оновлення офера'
+                                        };
                                     }
                                 }
-                                addLog({
-                                    type: 'success',
-                                    category: 'parsing',
-                                    message: `Ціна офера оновлена: ${title}`,
-                                    details: {
-                                        title,
-                                        offerId,
-                                        itemId,
-                                        oldPrice:
-                                            currentPriceFloat !== null
-                                                ? currentPriceFloat.toFixed(2)
-                                                : 'N/A',
-                                        newPrice: newPriceFloat.toFixed(2),
-                                        lowestPrice: (lowestPrice / 100).toFixed(2),
-                                        minPrice
-                                    }
-                                });
-                            } catch (updateErr) {
-                                const errorCode = updateErr.errorCode || 'UnknownError';
-                                addLog({
-                                    type: 'warning',
-                                    category: 'parsing',
-                                    message: `Не вдалося оновити офер: ${title} (${errorCode})`,
-                                    details: {
-                                        title,
-                                        offerId,
-                                        itemId,
-                                        errorCode,
-                                        errorMessage:
-                                            updateErr.message || 'Помилка оновлення офера',
-                                        oldPrice:
-                                            currentPriceFloat !== null
-                                                ? currentPriceFloat.toFixed(2)
-                                                : 'N/A',
-                                        newPrice: newPriceFloat.toFixed(2)
-                                    }
-                                });
                             }
                         }
+                        addLog({
+                            type: 'success',
+                            category: 'parsing',
+                            message: `Ціна офера оновлена: ${title}`,
+                            details: {
+                                title,
+                                offerId,
+                                itemId,
+                                oldPrice:
+                                    currentPriceFloat !== null
+                                        ? currentPriceFloat.toFixed(2)
+                                        : 'N/A',
+                                newPrice: newPriceFloat.toFixed(2),
+                                ...logExtra
+                            }
+                        });
+                    } catch (updateErr) {
+                        const errorCode = updateErr.errorCode || 'UnknownError';
+                        addLog({
+                            type: 'warning',
+                            category: 'parsing',
+                            message: `Не вдалося оновити офер: ${title} (${errorCode})`,
+                            details: {
+                                title,
+                                offerId,
+                                itemId,
+                                errorCode,
+                                errorMessage:
+                                    updateErr.message || 'Помилка оновлення офера',
+                                oldPrice:
+                                    currentPriceFloat !== null
+                                        ? currentPriceFloat.toFixed(2)
+                                        : 'N/A',
+                                newPrice: newPriceFloat.toFixed(2),
+                                ...logExtra
+                            }
+                        });
                     }
                 } catch (err) {
                     console.error(
@@ -206,7 +236,16 @@ export function useOfferAutoUpdate({
             setUpdating(false);
             isAutoUpdatingRef.current = false;
         }
-    }, [apiService, loadOffers, addLog, offersRef, minPricesRef, skipForParsingRef, flushToLocalStorage]);
+    }, [
+        apiService,
+        loadOffers,
+        addLog,
+        offersRef,
+        minPricesRef,
+        maxPricesRef,
+        skipForParsingRef,
+        flushToLocalStorage
+    ]);
 
     useEffect(() => {
         if (!apiService || offersLength === 0 || !isAutoUpdatingEnabled) {

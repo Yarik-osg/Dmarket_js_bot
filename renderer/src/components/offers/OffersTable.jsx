@@ -11,7 +11,7 @@ import {
 } from 'react-icons/ri';
 import { OfferItemTitleCell } from './OfferItemTitleCell.jsx';
 import { OfferPriceCell } from './OfferPriceCell.jsx';
-import { MinPriceEditor } from './MinPriceEditor.jsx';
+import { PriceBoundsEditor } from './PriceBoundsEditor.jsx';
 import { OfferFloatCell } from './OfferFloatCell.jsx';
 import { OfferTradeLockCell } from './OfferTradeLockCell.jsx';
 import { DMarketProductLinkButton } from '../DMarketProductLinkButton.jsx';
@@ -127,8 +127,12 @@ export function OffersTable({
     loadingTable,
     minPrices,
     pendingMinPrices,
+    maxPrices,
+    pendingMaxPrices,
     onMinPricePendingChange,
-    onApplyMinPrice,
+    onMaxPricePendingChange,
+    onApplyPriceBounds,
+    onCancelPriceBounds,
     skipForParsing,
     onSkipChange,
     updating,
@@ -232,18 +236,25 @@ export function OffersTable({
             },
             {
                 accessor: 'minPrice',
-                title: t('offers.minPrice'),
+                title: t('offers.priceBoundsColumn'),
                 sortable: true,
-                width: 210,
+                width: 280,
                 render: (offer) => (
-                    <MinPriceEditor
+                    <PriceBoundsEditor
                         itemId={offer.itemId}
                         pendingMinPrices={pendingMinPrices}
+                        pendingMaxPrices={pendingMaxPrices}
                         minPrices={minPrices}
+                        maxPrices={maxPrices}
                         offerMinPrice={offer.minPrice}
-                        onPendingChange={onMinPricePendingChange}
-                        onApply={onApplyMinPrice}
+                        onMinPendingChange={onMinPricePendingChange}
+                        onMaxPendingChange={onMaxPricePendingChange}
+                        onApply={onApplyPriceBounds}
+                        onCancel={onCancelPriceBounds}
                         disabled={updating}
+                        minLabel={t('offers.minPrice')}
+                        maxLabel={t('offers.maxPrice')}
+                        cancelTitle={t('offers.priceBoundsCancel')}
                     />
                 )
             },
@@ -321,8 +332,12 @@ export function OffersTable({
             loadingMarketPrices,
             minPrices,
             pendingMinPrices,
+            maxPrices,
+            pendingMaxPrices,
             onMinPricePendingChange,
-            onApplyMinPrice,
+            onMaxPricePendingChange,
+            onApplyPriceBounds,
+            onCancelPriceBounds,
             skipForParsing,
             onSkipChange,
             updating,
@@ -428,7 +443,7 @@ function columnLabel(accessor, t) {
         case 'marketPrice':
             return t('offers.marketPrice');
         case 'minPrice':
-            return t('offers.minPrice');
+            return t('offers.priceBoundsColumn');
         case 'float':
             return t('offers.float');
         case 'actions':

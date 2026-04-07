@@ -12,13 +12,20 @@ function readJson(key, fallback) {
 export function usePersistedOfferMinPrices(offers) {
     const [minPrices, setMinPrices] = useState(() => readJson('offersMinPrices', {}));
     const [pendingMinPrices, setPendingMinPrices] = useState({});
+    const [maxPrices, setMaxPrices] = useState(() => readJson('offersMaxPrices', {}));
+    const [pendingMaxPrices, setPendingMaxPrices] = useState({});
     const [skipForParsing, setSkipForParsing] = useState(() => readJson('offersSkipForParsing', {}));
     const minPricesRef = useRef(minPrices);
+    const maxPricesRef = useRef(maxPrices);
     const skipForParsingRef = useRef(skipForParsing);
 
     useEffect(() => {
         minPricesRef.current = minPrices;
     }, [minPrices]);
+
+    useEffect(() => {
+        maxPricesRef.current = maxPrices;
+    }, [maxPrices]);
 
     useEffect(() => {
         skipForParsingRef.current = skipForParsing;
@@ -33,6 +40,14 @@ export function usePersistedOfferMinPrices(offers) {
             }
         }
     }, [minPrices]);
+
+    useEffect(() => {
+        try {
+            localStorage.setItem('offersMaxPrices', JSON.stringify(maxPrices));
+        } catch (err) {
+            console.error('Error saving maxPrices to localStorage:', err);
+        }
+    }, [maxPrices]);
 
     useEffect(() => {
         try {
@@ -53,6 +68,22 @@ export function usePersistedOfferMinPrices(offers) {
                 }
             } catch (err) {
                 console.error('Error restoring minPrices from localStorage:', err);
+            }
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [offers.length]);
+
+    useEffect(() => {
+        if (offers.length > 0) {
+            try {
+                const saved = localStorage.getItem('offersMaxPrices');
+                if (saved) {
+                    const parsed = JSON.parse(saved);
+                    setMaxPrices(parsed);
+                    maxPricesRef.current = parsed;
+                }
+            } catch (err) {
+                console.error('Error restoring maxPrices from localStorage:', err);
             }
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -91,6 +122,13 @@ export function usePersistedOfferMinPrices(offers) {
             /* ignore */
         }
         try {
+            const xp = maxPricesRef.current || {};
+            if (Object.keys(xp).length > 0)
+                localStorage.setItem('offersMaxPrices', JSON.stringify(xp));
+        } catch {
+            /* ignore */
+        }
+        try {
             const sp = skipForParsingRef.current || {};
             localStorage.setItem('offersSkipForParsing', JSON.stringify(sp));
         } catch {
@@ -104,6 +142,11 @@ export function usePersistedOfferMinPrices(offers) {
         minPricesRef,
         pendingMinPrices,
         setPendingMinPrices,
+        maxPrices,
+        setMaxPrices,
+        maxPricesRef,
+        pendingMaxPrices,
+        setPendingMaxPrices,
         skipForParsing,
         setSkipForParsing,
         skipForParsingRef,
