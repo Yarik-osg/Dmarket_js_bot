@@ -201,6 +201,24 @@
   "apiHealth.rateLimitBody": "Сервер тимчасово обмежив частоту запитів. Зачекайте перед наступними діями.",
   "apiHealth.rateLimitRetry": "Рекомендована пауза (Retry-After): ~{seconds} с.",
   "apiHealth.errorsTitle": "Проблеми з DMarket API",
-  "apiHealth.errorsBody": "Зафіксовано багато помилок за короткий час. Перевірте з'єднання або статус сервісу DMarket."
+  "apiHealth.errorsBody": "Зафіксовано багато помилок за короткий час. Перевірте з'єднання або статус сервісу DMarket.",
+  "telegram.commandsEnabled": "Команди та меню в Telegram",
+  "telegram.commandsEnabledHint": "У відповідь на кнопки та команди бот надсилає статус (баланс, списки). Працює лише для вказаного chat_id. Для початку введіть /start в Telegram Боті. Не запускайте інший скрипт з тим самим bot token (конфлікт getUpdates).",
+  "telegram.welcome": "Меню активне. Оберіть кнопку або надішліть /balance, /targets, /offers, /parsing.",
+  "telegram.btnBalance": "Баланс",
+  "telegram.btnTargets": "Таргети",
+  "telegram.btnOffers": "Офери",
+  "telegram.btnParsing": "Парсинг",
+  "telegram.sectionBalance": "Баланс",
+  "telegram.sectionTargets": "Таргети (до {n})",
+  "telegram.sectionOffers": "Офери (до {n})",
+  "telegram.listedTotal": "Сума лістингів (нетто): ${amount} USD",
+  "telegram.parsingLine": "Автооновлення: таргети — {targets}, офери — {offers}",
+  "telegram.on": "увімкнено",
+  "telegram.off": "вимкнено",
+  "telegram.balanceError": "Не вдалося отримати баланс: {error}",
+  "telegram.labelYour": "Твоя:",
+  "telegram.labelMarket": "Ринок:",
+  "telegram.listHint": "Моноширинний список. «Ринок» — орієнтовна ціна на маркеті (таргети: найвищий buy; офери: найнижчий sell для того ж зрізу)."
 }
 

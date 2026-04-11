@@ -12,18 +12,34 @@ export function NotificationProvider({ children }) {
     const [apiConnectionBanner, setApiConnectionBanner] = useState(null);
     const apiErrorTimestampsRef = useRef([]);
     const apiSuccessStreakRef = useRef(0);
+    const defaultSettings = {
+        sales: true,
+        purchases: true,
+        lowBalance: true,
+        apiErrors: true,
+        opportunities: true,
+        lowBalanceThreshold: 10.0,
+        telegram: { enabled: false, botToken: '', chatId: '', commandsEnabled: false },
+        email: { enabled: false }
+    };
+
     const [settings, setSettings] = useState(() => {
         const saved = localStorage.getItem('notificationSettings');
-        return saved ? JSON.parse(saved) : {
-            sales: true,
-            purchases: true,
-            lowBalance: true,
-            apiErrors: true,
-            opportunities: true,
-            lowBalanceThreshold: 10.00,
-            telegram: { enabled: false, botToken: '', chatId: '' },
-            email: { enabled: false }
-        };
+        if (!saved) return defaultSettings;
+        try {
+            const p = JSON.parse(saved);
+            return {
+                ...defaultSettings,
+                ...p,
+                telegram: {
+                    ...defaultSettings.telegram,
+                    ...(p.telegram || {})
+                },
+                email: { ...defaultSettings.email, ...(p.email || {}) }
+            };
+        } catch {
+            return defaultSettings;
+        }
     });
 
     useEffect(() => {

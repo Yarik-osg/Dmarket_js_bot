@@ -338,6 +338,34 @@ function Notifications() {
                                         />
                                     </label>
                                 </div>
+
+                                <div className="setting-item">
+                                    <label>
+                                        <input
+                                            type="checkbox"
+                                            checked={Boolean(settings.telegram?.commandsEnabled)}
+                                            onChange={(e) =>
+                                                handleTelegramChange('commandsEnabled', e.target.checked)
+                                            }
+                                            disabled={
+                                                !settings.telegram?.botToken?.trim() ||
+                                                !String(settings.telegram?.chatId || '').trim()
+                                            }
+                                        />
+                                        {t('telegram.commandsEnabled')}
+                                    </label>
+                                    <p
+                                        style={{
+                                            marginTop: 8,
+                                            marginBottom: 0,
+                                            color: 'var(--text-secondary)',
+                                            fontSize: 13,
+                                            lineHeight: 1.45
+                                        }}
+                                    >
+                                        {t('telegram.commandsEnabledHint')}
+                                    </p>
+                                </div>
                             </>
                         )}
                     </div>

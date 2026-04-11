@@ -15,6 +15,7 @@ import Settings from '../Settings.jsx';
 import Analytics from '../Analytics.jsx';
 import Notifications from '../Notifications.jsx';
 import AuthScreen from '../AuthScreen.jsx';
+import TelegramUpdatesPoller from '../TelegramUpdatesPoller.jsx';
 import { TabErrorFallback } from '../../App.jsx';
 import '../../styles/MainLayout.css';
 import {
@@ -268,6 +269,11 @@ function MainLayout() {
 
     return (
         <div className="main-layout">
+            <TelegramUpdatesPoller
+                apiService={apiService}
+                isTargetsParsingEnabled={isTargetsParsingEnabled}
+                isOffersParsingEnabled={isOffersParsingEnabled}
+            />
             <Sidebar 
                 activeTab={activeTab} 
                 onTabChange={setActiveTab}

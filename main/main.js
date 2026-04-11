@@ -376,7 +376,7 @@ function createWindow() {
     }
 }
 
-app.whenReady().then(() => {
+app.whenReady().then(async () => {
     createWindow();
     setupAutoUpdater();
 
@@ -400,3 +400,4 @@ app.on('window-all-closed', () => {
         app.quit();
     }
 });
+
