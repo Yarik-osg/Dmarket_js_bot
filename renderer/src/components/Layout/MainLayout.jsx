@@ -7,6 +7,7 @@ import { ApiService } from '../../services/apiService.js';
 import { TransactionMonitor } from '../../services/transactionMonitor.js';
 import { useKeyboardShortcuts } from '../../hooks/useKeyboardShortcuts.js';
 import Sidebar from './Sidebar.jsx';
+import ApiHealthBanner from './ApiHealthBanner.jsx';
 import TargetsList from '../TargetsList.jsx';
 import OffersList from '../OffersList.jsx';
 import LogsList from '../LogsList.jsx';
@@ -276,6 +277,7 @@ function MainLayout() {
                 onToggleOffersParsing={() => setIsOffersParsingEnabled(prev => !prev)}
             />
             <div className="main-content">
+                <ApiHealthBanner />
                 <div style={{ display: activeTab === 'orders' ? 'block' : 'none' }}>
                     <ErrorBoundary FallbackComponent={TabErrorFallback}>
                         <TargetsList 

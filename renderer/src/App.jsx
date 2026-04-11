@@ -1,5 +1,10 @@
 import React, { useEffect } from 'react';
-import { MantineProvider, createTheme } from '@mantine/core';
+import {
+    MantineProvider,
+    createTheme,
+    localStorageColorSchemeManager,
+    ColorSchemeScript
+} from '@mantine/core';
 import { ErrorBoundary } from 'react-error-boundary';
 
 const mantineTheme = createTheme({
@@ -28,6 +33,10 @@ import { LogsProvider } from './contexts/LogsContext.jsx';
 import { NotificationProvider, useNotifications } from './contexts/NotificationContext.jsx';
 import { AnalyticsProvider } from './contexts/AnalyticsContext.jsx';
 import MainLayout from './components/Layout/MainLayout.jsx';
+import ThemeDocumentAndStoreSync from './components/ThemeDocumentAndStoreSync.jsx';
+import { UI_COLOR_SCHEME_LS_KEY } from './constants/uiStorageKeys.js';
+
+const colorSchemeManager = localStorageColorSchemeManager({ key: UI_COLOR_SCHEME_LS_KEY });
 
 function ErrorFallback({ error, resetErrorBoundary }) {
     return (
@@ -158,13 +167,15 @@ function NotificationContextExposer() {
 }
 
 function App() {
-    useEffect(() => {
-        document.documentElement.setAttribute('data-theme', 'dark');
-    }, []);
-
     return (
         <ErrorBoundary FallbackComponent={ErrorFallback} onReset={() => window.location.reload()}>
-            <MantineProvider defaultColorScheme="dark" theme={mantineTheme}>
+            <ColorSchemeScript defaultColorScheme="dark" storageKey={UI_COLOR_SCHEME_LS_KEY} />
+            <MantineProvider
+                theme={mantineTheme}
+                defaultColorScheme="dark"
+                colorSchemeManager={colorSchemeManager}
+            >
+                <ThemeDocumentAndStoreSync />
                 <LocaleProvider>
                     <AuthProvider>
                         <NotificationProvider>

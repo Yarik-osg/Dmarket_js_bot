@@ -4,8 +4,10 @@ import { useNotifications } from '../contexts/NotificationContext.jsx';
 import { useLocale } from '../contexts/LocaleContext.jsx';
 import { ApiService } from '../services/apiService.js';
 import { sumOffersNetUsd } from '../utils/offerListingPrice.js';
-import { RiWallet3Line, RiRefreshLine } from 'react-icons/ri';
+import { RiWallet3Line, RiRefreshLine, RiArrowUpSLine, RiArrowDownSLine } from 'react-icons/ri';
 import '../styles/BalanceDisplay.css';
+
+const BALANCE_COLLAPSED_KEY = 'balanceDisplayCollapsed';
 
 function BalanceDisplay() {
     const { t } = useLocale();
@@ -19,6 +21,25 @@ function BalanceDisplay() {
     const loadingRef = useRef(false);
     const errorRef = useRef(null);
     const lastBalanceRef = useRef(null);
+    const [sectionCollapsed, setSectionCollapsed] = useState(() => {
+        try {
+            return localStorage.getItem(BALANCE_COLLAPSED_KEY) === '1';
+        } catch {
+            return false;
+        }
+    });
+
+    const toggleSectionCollapsed = useCallback(() => {
+        setSectionCollapsed((prev) => {
+            const next = !prev;
+            try {
+                localStorage.setItem(BALANCE_COLLAPSED_KEY, next ? '1' : '0');
+            } catch {
+                /* ignore */
+            }
+            return next;
+        });
+    }, []);
 
     const apiService = useMemo(() => {
         return client ? new ApiService(client) : null;
@@ -150,10 +171,23 @@ function BalanceDisplay() {
         listedNetUsd !== null && !listedError ? walletDollars + listedNetUsd : null;
 
     return (
-        <div className="balance-display">
+        <div className={`balance-display${sectionCollapsed ? ' balance-display--collapsed' : ''}`}>
             <div className="balance-header">
-                <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <RiWallet3Line /> Баланс
+                <button
+                    type="button"
+                    className="balance-section-toggle"
+                    onClick={toggleSectionCollapsed}
+                    aria-expanded={!sectionCollapsed}
+                    title={sectionCollapsed ? t('balance.sectionExpand') : t('balance.sectionCollapse')}
+                >
+                    {sectionCollapsed ? (
+                        <RiArrowDownSLine className="balance-section-toggle-icon" aria-hidden />
+                    ) : (
+                        <RiArrowUpSLine className="balance-section-toggle-icon" aria-hidden />
+                    )}
+                </button>
+                <span className="balance-header-title">
+                    <RiWallet3Line aria-hidden /> Баланс
                 </span>
                 <button 
                     onClick={handleRefresh} 
@@ -166,6 +200,8 @@ function BalanceDisplay() {
                     }} />
                 </button>
             </div>
+            {!sectionCollapsed && (
+            <>
             <div className="balance-item">
                 <span className="balance-label">Доступно:</span>
                 <span className="balance-value available">${formatBalance(usdAvailable)}</span>
@@ -199,6 +235,8 @@ function BalanceDisplay() {
                     {grandWithOffersDollars === null ? '…' : `$${grandWithOffersDollars.toFixed(2)}`}
                 </span>
             </div>
+            </>
+            )}
         </div>
     );
 }

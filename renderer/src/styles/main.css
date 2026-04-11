@@ -22,8 +22,9 @@ button, .sidebar-item, .parsing-btn, .analytics-tab {
     --text-primary: #0f172a;
     --text-secondary: #475569;
     --text-tertiary: #94a3b8;
-    --border-color: #e2e8f0;
-    --border-hover: #cbd5e1;
+    /* Stronger than slate-200 so tables/cards read as framed */
+    --border-color: #cbd5e1;
+    --border-hover: #94a3b8;
     --accent-color: #3b82f6;
     --accent-hover: #2563eb;
     --accent-light: #dbeafe;

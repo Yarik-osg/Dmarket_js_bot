@@ -1,22 +1,58 @@
 import React, { useState, useEffect } from 'react';
+import { SegmentedControl, Text, useMantineColorScheme } from '@mantine/core';
 import { useAuth } from '../contexts/AuthContext.jsx';
 import { useLogs } from '../contexts/LogsContext.jsx';
+import { useLocale } from '../contexts/LocaleContext.jsx';
 import { showConfirmModal } from '../utils/modal.js';
 import { getReleaseNotesForVersion } from '../data/releaseNotes.js';
 import { GITHUB_RELEASES_INDEX } from '../constants/githubRelease.js';
+import { FEEDBACK_APP_MAX_BODY_CHARS, FEEDBACK_MAX_SUBJECT_CHARS } from '../constants/feedbackContact.js';
+import { submitWeb3Feedback } from '../services/web3formsFeedback.js';
 import '../styles/Settings.css';
 
 function Settings({ updater }) {
     const { login, logout, isAuthenticated } = useAuth();
     const { addLog } = useLogs();
+    const { t } = useLocale();
+    const { colorScheme, setColorScheme } = useMantineColorScheme();
     const [publicKey, setPublicKey] = useState('');
     const [secretKey, setSecretKey] = useState('');
     const [error, setError] = useState('');
     const [success, setSuccess] = useState('');
     const [loading, setLoading] = useState(false);
     const [showKeys, setShowKeys] = useState(false);
+    const [feedbackSubject, setFeedbackSubject] = useState('');
+    const [feedbackMessage, setFeedbackMessage] = useState('');
+    const [feedbackReplyEmail, setFeedbackReplyEmail] = useState('');
+    const [feedbackWeb3Configured, setFeedbackWeb3Configured] = useState(null);
+    const [feedbackSending, setFeedbackSending] = useState(false);
+    const [feedbackBanner, setFeedbackBanner] = useState(null);
 
     const updaterReleaseNotes = updater ? getReleaseNotesForVersion(updater.appVersion) : [];
+
+    useEffect(() => {
+        const api = window.electronAPI?.feedback;
+        if (!api?.isWeb3Configured) {
+            setFeedbackWeb3Configured(false);
+            return;
+        }
+        let cancelled = false;
+        (async () => {
+            try {
+                const res = await api.isWeb3Configured();
+                if (!cancelled) {
+                    setFeedbackWeb3Configured(Boolean(res?.ok && res.configured));
+                }
+            } catch {
+                if (!cancelled) {
+                    setFeedbackWeb3Configured(false);
+                }
+            }
+        })();
+        return () => {
+            cancelled = true;
+        };
+    }, []);
 
     useEffect(() => {
         // Load current keys from storage (masked)
@@ -163,6 +199,67 @@ function Settings({ updater }) {
         loadActualKeys();
     };
 
+    const sendFeedbackFromApp = async () => {
+        const message = feedbackMessage.trim();
+        if (!message || feedbackSending) {
+            return;
+        }
+        const reply = feedbackReplyEmail.trim();
+        if (reply && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(reply)) {
+            setFeedbackBanner({ type: 'error', text: t('feedback.invalidReplyEmail') });
+            return;
+        }
+        const feedbackApi = window.electronAPI?.feedback;
+        if (!feedbackApi?.isWeb3Configured) {
+            setFeedbackBanner({ type: 'error', text: t('feedback.sendError') });
+            return;
+        }
+        setFeedbackSending(true);
+        setFeedbackBanner(null);
+        try {
+            const cfg = await feedbackApi.isWeb3Configured();
+            const accessKey = String(cfg?.accessKey || '').trim();
+            if (!cfg?.ok || !accessKey) {
+                setFeedbackBanner({ type: 'info', text: t('feedback.notConfiguredHint') });
+                setFeedbackWeb3Configured(Boolean(cfg?.configured));
+                return;
+            }
+            const result = await submitWeb3Feedback(accessKey, {
+                subject: feedbackSubject.trim(),
+                message,
+                replyTo: reply || undefined,
+                maxSubject: FEEDBACK_MAX_SUBJECT_CHARS
+            });
+            if (result?.ok) {
+                setFeedbackBanner({ type: 'success', text: t('feedback.sentOk') });
+                addLog({
+                    type: 'success',
+                    category: 'system',
+                    message: 'Надіслано зворотний зв\'язок з додатка'
+                });
+            } else if (result?.code === 'not_configured') {
+                setFeedbackBanner({ type: 'info', text: t('feedback.notConfiguredHint') });
+            } else if (result?.code === 'invalid_reply_email') {
+                setFeedbackBanner({ type: 'error', text: t('feedback.invalidReplyEmail') });
+            } else {
+                setFeedbackBanner({
+                    type: 'error',
+                    text: `${t('feedback.sendError')}${result?.message ? ` (${result.message})` : ''}`
+                });
+            }
+        } catch (err) {
+            setFeedbackBanner({
+                type: 'error',
+                text: `${t('feedback.sendError')} ${err?.message || ''}`.trim()
+            });
+        } finally {
+            setFeedbackSending(false);
+        }
+    };
+
+    const feedbackBodyLen = feedbackMessage.length;
+    const feedbackSubjectLen = feedbackSubject.length;
+
     return (
         <div className="settings-container">
             <div className="settings-header">
@@ -170,6 +267,23 @@ function Settings({ updater }) {
             </div>
 
             <div className="settings-content">
+                <div className="settings-section">
+                    <h2 className="settings-section-title">{t('theme.title')}</h2>
+                    <Text size="sm" c="dimmed" mb="sm">
+                        {t('theme.appearanceHint')}
+                    </Text>
+                    <SegmentedControl
+                        fullWidth
+                        value={colorScheme}
+                        onChange={setColorScheme}
+                        data={[
+                            { label: t('theme.light'), value: 'light' },
+                            { label: t('theme.dark'), value: 'dark' },
+                            { label: t('theme.system'), value: 'auto' }
+                        ]}
+                    />
+                </div>
+
                 <div className="settings-section">
                     <h2 className="settings-section-title">API Ключі DMarket</h2>
                     <p className="settings-description">
@@ -249,6 +363,106 @@ function Settings({ updater }) {
                             </button>
                         </div>
                     </form>
+                </div>
+
+                <div className="settings-section">
+                    <h2 className="settings-section-title">{t('feedback.title')}</h2>
+                    <p className="settings-description">{t('feedback.description')}</p>
+
+                    {feedbackWeb3Configured === false ? (
+                        <p className="settings-description" style={{ marginTop: 0 }}>
+                            {t('feedback.notConfiguredHint')}
+                        </p>
+                    ) : (
+                        <>
+                            <div className="settings-field">
+                                <label htmlFor="feedbackSubject">{t('feedback.subjectLabel')}</label>
+                                <input
+                                    id="feedbackSubject"
+                                    type="text"
+                                    value={feedbackSubject}
+                                    onChange={(e) =>
+                                        setFeedbackSubject(
+                                            e.target.value.slice(0, FEEDBACK_MAX_SUBJECT_CHARS)
+                                        )
+                                    }
+                                    placeholder={t('feedback.subjectPlaceholder')}
+                                    className="settings-input"
+                                    maxLength={FEEDBACK_MAX_SUBJECT_CHARS}
+                                    autoComplete="off"
+                                />
+                                <p className="settings-feedback-meta">
+                                    {t('feedback.charCount')
+                                        .replace('{used}', String(feedbackSubjectLen))
+                                        .replace('{max}', String(FEEDBACK_MAX_SUBJECT_CHARS))}
+                                </p>
+                            </div>
+
+                            <div className="settings-field">
+                                <label htmlFor="feedbackReplyEmail">{t('feedback.replyEmailLabel')}</label>
+                                <input
+                                    id="feedbackReplyEmail"
+                                    type="email"
+                                    value={feedbackReplyEmail}
+                                    onChange={(e) =>
+                                        setFeedbackReplyEmail(e.target.value.slice(0, 254))
+                                    }
+                                    placeholder={t('feedback.replyEmailPlaceholder')}
+                                    className="settings-input"
+                                    autoComplete="email"
+                                />
+                            </div>
+
+                            <div className="settings-field">
+                                <label htmlFor="feedbackMessage">{t('feedback.messageLabel')}</label>
+                                <textarea
+                                    id="feedbackMessage"
+                                    value={feedbackMessage}
+                                    onChange={(e) =>
+                                        setFeedbackMessage(
+                                            e.target.value.slice(0, FEEDBACK_APP_MAX_BODY_CHARS)
+                                        )
+                                    }
+                                    placeholder={t('feedback.messagePlaceholder')}
+                                    className="settings-input settings-feedback-textarea"
+                                    rows={5}
+                                    maxLength={FEEDBACK_APP_MAX_BODY_CHARS}
+                                />
+                                <p className="settings-feedback-meta">
+                                    {t('feedback.charCount')
+                                        .replace('{used}', String(feedbackBodyLen))
+                                        .replace('{max}', String(FEEDBACK_APP_MAX_BODY_CHARS))}
+                                </p>
+                            </div>
+
+                            {feedbackBanner?.type === 'success' ? (
+                                <div className="settings-success">{feedbackBanner.text}</div>
+                            ) : null}
+                            {feedbackBanner?.type === 'error' ? (
+                                <div className="settings-error">{feedbackBanner.text}</div>
+                            ) : null}
+                            {feedbackBanner?.type === 'info' ? (
+                                <div className="settings-description" style={{ marginBottom: 12 }}>
+                                    {feedbackBanner.text}
+                                </div>
+                            ) : null}
+
+                            <div className="settings-actions">
+                                {feedbackWeb3Configured ? (
+                                    <button
+                                        type="button"
+                                        className="btn btn-primary settings-save-btn"
+                                        onClick={sendFeedbackFromApp}
+                                        disabled={!feedbackMessage.trim() || feedbackSending}
+                                    >
+                                        {feedbackSending
+                                            ? t('feedback.sending')
+                                            : t('feedback.sendFromApp')}
+                                    </button>
+                                ) : null}
+                            </div>
+                        </>
+                    )}
                 </div>
 
                 {updater && (

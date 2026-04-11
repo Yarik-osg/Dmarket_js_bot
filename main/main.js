@@ -1,15 +1,53 @@
 import { app, BrowserWindow, ipcMain, shell, Menu } from 'electron';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
+import { readFileSync, existsSync } from 'fs';
 import { writeFile, mkdir, readdir, unlink, stat } from 'fs/promises';
 import Store from 'electron-store';
 import electronUpdater from 'electron-updater';
 import { checkMacUpdate, downloadMacUpdate } from './updater/macGithub.js';
+import { getWeb3FormsAccessKey } from './feedbackWeb3Send.js';
 
 const { autoUpdater } = electronUpdater;
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
+
+/** Підхопити Web3Forms-ключ з .env у корені репо (Electron сам по собі .env не читає). */
+function loadFeedbackKeyFromDotEnv() {
+    try {
+        const envPath = join(__dirname, '..', '.env');
+        if (!existsSync(envPath)) {
+            return;
+        }
+        const text = readFileSync(envPath, 'utf8');
+        for (const line of text.split(/\n/)) {
+            const t = line.trim();
+            if (!t || t.startsWith('#')) {
+                continue;
+            }
+            const m = t.match(/^DMARKET_WEB3FORMS_ACCESS_KEY\s*=\s*(.*)$/);
+            if (!m) {
+                continue;
+            }
+            let v = m[1].trim();
+            if (
+                (v.startsWith('"') && v.endsWith('"')) ||
+                (v.startsWith("'") && v.endsWith("'"))
+            ) {
+                v = v.slice(1, -1);
+            }
+            if (v && !process.env.DMARKET_WEB3FORMS_ACCESS_KEY) {
+                process.env.DMARKET_WEB3FORMS_ACCESS_KEY = v;
+            }
+            break;
+        }
+    } catch {
+        /* ignore */
+    }
+}
+
+loadFeedbackKeyFromDotEnv();
 
 let mainWindow;
 const store = new Store();
@@ -39,7 +77,17 @@ ipcMain.handle('store-has', (event, key) => {
 });
 
 ipcMain.handle('shell-open-external', async (event, url) => {
-    if (typeof url !== 'string' || !/^https:\/\//i.test(url)) {
+    if (typeof url !== 'string' || url.length > 20000) {
+        return { ok: false, error: 'invalid-url' };
+    }
+    let protocol;
+    try {
+        protocol = new URL(url).protocol;
+    } catch {
+        return { ok: false, error: 'invalid-url' };
+    }
+    const allowed = protocol === 'https:';
+    if (!allowed) {
         return { ok: false, error: 'invalid-url' };
     }
     try {
@@ -139,6 +187,12 @@ ipcMain.handle('log-list-files', async () => {
 
 ipcMain.handle('log-get-path', () => {
     return { ok: true, path: LOG_DIR };
+});
+
+/** Один канал: configured + accessKey (POST лише з renderer, інакше Web3Forms 403). */
+ipcMain.handle('feedback-web3-configured', async () => {
+    const key = await getWeb3FormsAccessKey();
+    return { ok: true, configured: Boolean(key), accessKey: key || '' };
 });
 
 function sendUpdaterEvent(payload) {

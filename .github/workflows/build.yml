@@ -34,6 +34,25 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      # Ключ Web3Forms — зворотний зв’язок у релізі. Репозиторій → Settings → Secrets: WEB3FORMS_ACCESS_KEY
+      - name: Write Web3Forms key for packaged app
+        shell: bash
+        env:
+          WEB3_KEY: ${{ secrets.WEB3FORMS_ACCESS_KEY }}
+        run: |
+          node <<'EOF'
+          const fs = require('fs');
+          const k = process.env.WEB3_KEY || '';
+          if (!k) {
+            console.log('WEB3FORMS_ACCESS_KEY secret not set — feedback disabled in this build');
+            process.exit(0);
+          }
+          fs.writeFileSync(
+            'main/web3forms.local.mjs',
+            '// generated in CI\nexport const WEB3FORMS_ACCESS_KEY = ' + JSON.stringify(k) + ';\n'
+          );
+          EOF
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
@@ -85,6 +104,24 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+
+      - name: Write Web3Forms key for packaged app
+        shell: bash
+        env:
+          WEB3_KEY: ${{ secrets.WEB3FORMS_ACCESS_KEY }}
+        run: |
+          node <<'EOF'
+          const fs = require('fs');
+          const k = process.env.WEB3_KEY || '';
+          if (!k) {
+            console.log('WEB3FORMS_ACCESS_KEY secret not set — feedback disabled in this build');
+            process.exit(0);
+          }
+          fs.writeFileSync(
+            'main/web3forms.local.mjs',
+            '// generated in CI\nexport const WEB3FORMS_ACCESS_KEY = ' + JSON.stringify(k) + ';\n'
+          );
+          EOF
 
       - name: Setup Node.js
         uses: actions/setup-node@v4

@@ -1,0 +1,18 @@
+.main-api-health-banner {
+    position: sticky;
+    top: 0;
+    z-index: 5;
+    padding: 10px 16px 0;
+    background: var(--bg-primary);
+}
+
+.main-api-health-banner__body {
+    font-size: 13px;
+    line-height: 1.45;
+}
+
+.main-api-health-banner__retry {
+    margin-top: 6px;
+    font-size: 12px;
+    opacity: 0.9;
+}

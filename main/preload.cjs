@@ -39,5 +39,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
         read: (options) => ipcRenderer.invoke('log-read', options),
         listFiles: () => ipcRenderer.invoke('log-list-files'),
         getPath: () => ipcRenderer.invoke('log-get-path')
+    },
+    feedback: {
+        isWeb3Configured: () => ipcRenderer.invoke('feedback-web3-configured')
     }
 });

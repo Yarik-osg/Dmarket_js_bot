@@ -1,9 +1,17 @@
-import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
+import React, { createContext, useContext, useState, useCallback, useEffect, useRef } from 'react';
+import { setDmarketHttpReporter } from '../utils/apiHealthBridge.js';
 
 const NotificationContext = createContext();
 
+const API_ERROR_WINDOW_MS = 60_000;
+const API_ERROR_THRESHOLD = 5;
+const API_SUCCESS_CLEAR_STREAK = 2;
+
 export function NotificationProvider({ children }) {
     const [notifications, setNotifications] = useState([]);
+    const [apiConnectionBanner, setApiConnectionBanner] = useState(null);
+    const apiErrorTimestampsRef = useRef([]);
+    const apiSuccessStreakRef = useRef(0);
     const [settings, setSettings] = useState(() => {
         const saved = localStorage.getItem('notificationSettings');
         return saved ? JSON.parse(saved) : {
@@ -125,6 +133,49 @@ export function NotificationProvider({ children }) {
 
     const unreadCount = notifications.filter(n => !n.read).length;
 
+    const dismissApiConnectionBanner = useCallback(() => {
+        setApiConnectionBanner(null);
+    }, []);
+
+    const reportDmarketHttp = useCallback((payload) => {
+        if (payload.ok) {
+            apiSuccessStreakRef.current += 1;
+            if (apiSuccessStreakRef.current >= API_SUCCESS_CLEAR_STREAK) {
+                setApiConnectionBanner(null);
+                apiErrorTimestampsRef.current = [];
+            }
+            return;
+        }
+
+        apiSuccessStreakRef.current = 0;
+
+        if (payload.status === 429) {
+            setApiConnectionBanner({
+                kind: 'rate_limit',
+                since: Date.now(),
+                retryAfterSec:
+                    payload.retryAfterSec != null && Number.isFinite(payload.retryAfterSec)
+                        ? payload.retryAfterSec
+                        : null
+            });
+            return;
+        }
+
+        const now = Date.now();
+        apiErrorTimestampsRef.current = apiErrorTimestampsRef.current.filter(
+            (t) => now - t < API_ERROR_WINDOW_MS
+        );
+        apiErrorTimestampsRef.current.push(now);
+        if (apiErrorTimestampsRef.current.length >= API_ERROR_THRESHOLD) {
+            setApiConnectionBanner({ kind: 'errors', since: now });
+        }
+    }, []);
+
+    useEffect(() => {
+        setDmarketHttpReporter(reportDmarketHttp);
+        return () => setDmarketHttpReporter(null);
+    }, [reportDmarketHttp]);
+
     return (
         <NotificationContext.Provider value={{
             notifications,
@@ -135,7 +186,9 @@ export function NotificationProvider({ children }) {
             markAsRead,
             markAllAsRead,
             clearNotifications,
-            unreadCount
+            unreadCount,
+            apiConnectionBanner,
+            dismissApiConnectionBanner
         }}>
             {children}
         </NotificationContext.Provider>

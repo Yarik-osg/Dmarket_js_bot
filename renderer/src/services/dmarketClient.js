@@ -1,6 +1,7 @@
 // DMarketClient for renderer process using fetch API
 
 import nacl from 'tweetnacl';
+import { reportDmarketHttpResult } from '../utils/apiHealthBridge.js';
 
 function byteToHexString(uint8arr) {
     if (!uint8arr) {
@@ -100,7 +101,10 @@ export class DMarketClient {
         try {
             const response = await fetch(url, fetchOptions);
             const data = await response.text();
-            
+            const retryRaw = response.headers.get('Retry-After');
+            const retryParsed = retryRaw != null && retryRaw !== '' ? Number(retryRaw) : NaN;
+            const retryAfterSec = Number.isFinite(retryParsed) ? retryParsed : null;
+
             if (!response.ok) {
                 // Log error details for debugging
                 console.error('API Error:', {
@@ -110,15 +114,41 @@ export class DMarketClient {
                     headers: Object.fromEntries(response.headers.entries()),
                     body: data
                 });
+                reportDmarketHttpResult({
+                    ok: false,
+                    status: response.status,
+                    method,
+                    path: apiUrlPath,
+                    retryAfterSec
+                });
                 throw new Error(`API call failed with status code ${response.status}: ${data}`);
             }
-            
+
+            let parsed;
             try {
-                return JSON.parse(data);
+                parsed = JSON.parse(data);
             } catch (e) {
                 throw new Error('Failed to parse JSON response.');
             }
+
+            reportDmarketHttpResult({
+                ok: true,
+                status: response.status,
+                method,
+                path: apiUrlPath
+            });
+
+            return parsed;
         } catch (error) {
+            const msg = error?.message || '';
+            if (!msg.startsWith('API call failed') && msg !== 'Failed to parse JSON response.') {
+                reportDmarketHttpResult({
+                    ok: false,
+                    status: 0,
+                    method,
+                    path: apiUrlPath
+                });
+            }
             throw error;
         }
     }
