@@ -237,12 +237,21 @@ export default function LiquidityCard({ item, index }) {
                                     <span className="stat-value price">${item.currentMaxTarget.toFixed(2)}</span>
                                 </div>
                             )}
-                            {item.currentSpread !== null && (
+                            {item.currentMinOffer > 0 && item.currentMaxTarget > 0 && (
                                 <div className="stat-row highlight">
                                     <span className="stat-label">Спред (офер − таргет):</span>
-                                    <span className={`stat-value ${item.currentSpread >= 0 ? 'positive' : 'negative'}`}>
-                                        {item.currentSpread >= 0 ? '+' : ''}${item.currentSpread.toFixed(2)}
-                                    </span>
+                                    {item.currentSpread !== null ? (
+                                        <span className={`stat-value ${item.currentSpread >= 0 ? 'positive' : 'negative'}`}>
+                                            {item.currentSpread >= 0 ? '+' : ''}${item.currentSpread.toFixed(2)}
+                                        </span>
+                                    ) : (
+                                        <span
+                                            className="stat-value info"
+                                            title="Мінімальна ціна продажу нижча за максимальну заявку на купівлю — ці значення з різних сегментів ринку (наприклад знос), тому числовий спред тут не показується. Звузьте фільтри (екстер’єр / флот) для порівнянного знімка."
+                                        >
+                                            —
+                                        </span>
+                                    )}
                                 </div>
                             )}
                         </div>

@@ -137,10 +137,49 @@
     flex-wrap: wrap;
 }
 
-.control-row:first-child {
+/* Чекбокси окремо від рядка ціна / float / пошук — інакше wrap кидає float під ціни */
+.liquidity-filters-main-section {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
     padding-bottom: 12px;
     border-bottom: 1px solid var(--border-color);
     margin-bottom: 8px;
+}
+
+.liquidity-row-price-float-search {
+    display: grid;
+    grid-template-columns: auto minmax(200px, 280px) minmax(220px, 1fr);
+    gap: 12px 16px;
+    align-items: start;
+    width: 100%;
+}
+
+.liquidity-row-price-float-search .float-multi-select {
+    width: 100%;
+    min-width: 0;
+    max-width: none;
+}
+
+.liquidity-row-price-float-search .filter-group.search-field {
+    flex: unset;
+    min-width: 0;
+    width: 100%;
+}
+
+.price-range-group {
+    display: flex;
+    flex-direction: row;
+    flex-wrap: nowrap;
+    gap: 12px;
+    align-items: flex-start;
+    flex: 0 1 auto;
+}
+
+.price-range-group .filter-group {
+    flex: 0 1 160px;
+    min-width: 120px;
+    max-width: 200px;
 }
 
 .quality-selector,
@@ -1247,6 +1286,22 @@
     .filter-group {
         min-width: 100%;
     }
+
+    .price-range-group {
+        flex-direction: row;
+        width: 100%;
+        max-width: 100%;
+    }
+
+    .price-range-group .filter-group {
+        flex: 1 1 calc(50% - 6px);
+        min-width: 0;
+        max-width: none;
+    }
+
+    .liquidity-row-price-float-search {
+        grid-template-columns: 1fr;
+    }
     
     .analyze-btn {
         width: 100%;
@@ -1309,9 +1364,6 @@
         display: none;
     }
 
-    .float-multi-select {
-        min-width: 100%;
-    }
 }
 
 /* Float multi-select dropdown */
@@ -1320,8 +1372,8 @@
     display: flex;
     flex-direction: column;
     gap: 8px;
-    flex: 1 1 220px;
-    min-width: 180px;
+    width: 100%;
+    min-width: 0;
 }
 
 .float-select-trigger {

@@ -161,7 +161,6 @@
   "liquidity.maxPrice": "Макс. ціна ($):",
   "liquidity.floatFrom": "Float від (0-1):",
   "liquidity.floatTo": "Float до (0-1):",
-  "liquidity.minROI": "Мін. ROI (%):",
   "liquidity.searchByName": "Пошук по назві (необов'язково):",
   "liquidity.searchPlaceholder": "Наприклад: AWP | Dragon Lore",
   "liquidity.itemCount": "Кількість предметів для аналізу:",

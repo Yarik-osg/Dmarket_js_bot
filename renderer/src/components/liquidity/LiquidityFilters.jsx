@@ -153,7 +153,7 @@ function FloatMultiSelect({ selected, onChange, disabled }) {
     );
 }
 
-function ActiveFilterTags({ categories, qualities, exteriors, statTrak, minPrice, maxPrice, selectedFloats, minROI, itemSearch }) {
+function ActiveFilterTags({ categories, qualities, exteriors, statTrak, minPrice, maxPrice, selectedFloats, itemSearch }) {
     const tags = [];
     if (categories.length > 0) {
         tags.push(`Категорії: ${categories.map(c => CATEGORY_OPTIONS.find(o => o.value === c)?.label.split(' ')[0]).join(', ')}`);
@@ -174,7 +174,6 @@ function ActiveFilterTags({ categories, qualities, exteriors, statTrak, minPrice
             tags.push(`Float: ${selectedFloats.length} діапазонів`);
         }
     }
-    if (minROI && parseFloat(minROI) > 0) tags.push(`Мін. ROI: ${minROI}%`);
     if (itemSearch.trim()) tags.push(`Предмет: ${itemSearch}`);
     if (tags.length === 0) tags.push('Всі предмети');
 
@@ -191,7 +190,7 @@ export default function LiquidityFilters({
 }) {
     const {
         selectedCategories, selectedQualities, selectedExteriors, selectedStatTrak,
-        minPrice, maxPrice, selectedFloats, minROI, maxItems, itemSearch,
+        minPrice, maxPrice, selectedFloats, maxItems, itemSearch,
     } = filters;
 
     const set = (key) => (val) => setFilters(prev => ({ ...prev, [key]: typeof val === 'function' ? val(prev[key]) : val }));
@@ -211,7 +210,7 @@ export default function LiquidityFilters({
                             exteriors={selectedExteriors} statTrak={selectedStatTrak}
                             minPrice={minPrice} maxPrice={maxPrice}
                             selectedFloats={selectedFloats}
-                            minROI={minROI} itemSearch={itemSearch}
+                            itemSearch={itemSearch}
                         />
                     )}
                 </div>
@@ -220,57 +219,58 @@ export default function LiquidityFilters({
 
             {!isCollapsed && (
                 <>
-                    <div className="control-row">
-                        <CheckboxGroup title="Категорія зброї:" options={CATEGORY_OPTIONS} selected={selectedCategories} onChange={v => toggleValue(set('selectedCategories'), v)} disabled={isLoading} />
-                        <CheckboxGroup title="Якість:" options={QUALITY_OPTIONS} selected={selectedQualities} onChange={v => toggleValue(set('selectedQualities'), v)} disabled={isLoading} />
-                        <CheckboxGroup title="Стан зношення:" options={EXTERIOR_OPTIONS} selected={selectedExteriors} onChange={v => toggleValue(set('selectedExteriors'), v)} disabled={isLoading} />
-                        <CheckboxGroup title="StatTrak™:" options={STATTRAK_OPTIONS} selected={selectedStatTrak} onChange={v => toggleValue(set('selectedStatTrak'), v)} disabled={isLoading} />
-
-                        <div className="filter-group">
-                            <label>Мін. ціна ($):</label>
-                            <input type="number" value={minPrice} onChange={e => set('minPrice')(e.target.value)} disabled={isLoading} placeholder="0" min="0" step="0.01" className="price-input" />
-                        </div>
-                        <div className="filter-group">
-                            <label>Макс. ціна ($):</label>
-                            <input type="number" value={maxPrice} onChange={e => set('maxPrice')(e.target.value)} disabled={isLoading} placeholder="Без ліміту" min="0" step="0.01" className="price-input" />
-                        </div>
-                        <FloatMultiSelect
-                            selected={selectedFloats || []}
-                            onChange={v => set('selectedFloats')(v)}
-                            disabled={isLoading}
-                        />
-                        <div className="filter-group">
-                            <label>Мін. ROI (%):</label>
-                            <input type="number" value={minROI} onChange={e => set('minROI')(e.target.value)} disabled={isLoading} placeholder="0" min="0" step="1" className="price-input" />
+                    <div className="liquidity-filters-main-section">
+                        <div className="control-row liquidity-checkbox-row">
+                            <CheckboxGroup title="Категорія зброї:" options={CATEGORY_OPTIONS} selected={selectedCategories} onChange={v => toggleValue(set('selectedCategories'), v)} disabled={isLoading} />
+                            <CheckboxGroup title="Якість:" options={QUALITY_OPTIONS} selected={selectedQualities} onChange={v => toggleValue(set('selectedQualities'), v)} disabled={isLoading} />
+                            <CheckboxGroup title="Стан зношення:" options={EXTERIOR_OPTIONS} selected={selectedExteriors} onChange={v => toggleValue(set('selectedExteriors'), v)} disabled={isLoading} />
+                            <CheckboxGroup title="StatTrak™:" options={STATTRAK_OPTIONS} selected={selectedStatTrak} onChange={v => toggleValue(set('selectedStatTrak'), v)} disabled={isLoading} />
                         </div>
 
-                        <div className="filter-group search-field">
-                            <label>Пошук по назві (необов'язково):</label>
-                            <div className="search-input-wrapper">
-                                <input
-                                    type="text"
-                                    value={itemSearch}
-                                    onChange={e => { set('itemSearch')(e.target.value); onItemSearch(e.target.value); }}
-                                    disabled={isLoading}
-                                    placeholder="Наприклад: AWP | Dragon Lore"
-                                    className="search-input"
-                                />
-                                {isSearching && <span className="search-loading">🔍</span>}
-                                {searchResults.length > 0 && (
-                                    <div className="search-results-dropdown">
-                                        {searchResults.map((r, i) => (
-                                            <div key={i} className="search-result-item" onClick={() => onSelectSearchResult(r)}>
-                                                <span className="result-title">{r.title || r.extra?.title}</span>
-                                                <span className="result-price">${(parseFloat(r.price?.USD || r.price?.amount || 0) / 100).toFixed(2)}</span>
-                                            </div>
-                                        ))}
-                                    </div>
-                                )}
+                        <div className="liquidity-row-price-float-search">
+                            <div className="price-range-group">
+                                <div className="filter-group">
+                                    <label>Мін. ціна ($):</label>
+                                    <input type="number" value={minPrice} onChange={e => set('minPrice')(e.target.value)} disabled={isLoading} placeholder="0" min="0" step="0.01" className="price-input" />
+                                </div>
+                                <div className="filter-group">
+                                    <label>Макс. ціна ($):</label>
+                                    <input type="number" value={maxPrice} onChange={e => set('maxPrice')(e.target.value)} disabled={isLoading} placeholder="Без ліміту" min="0" step="0.01" className="price-input" />
+                                </div>
+                            </div>
+                            <FloatMultiSelect
+                                selected={selectedFloats || []}
+                                onChange={v => set('selectedFloats')(v)}
+                                disabled={isLoading}
+                            />
+                            <div className="filter-group search-field">
+                                <label>Пошук по назві (необов'язково):</label>
+                                <div className="search-input-wrapper">
+                                    <input
+                                        type="text"
+                                        value={itemSearch}
+                                        onChange={e => { set('itemSearch')(e.target.value); onItemSearch(e.target.value); }}
+                                        disabled={isLoading}
+                                        placeholder="Наприклад: AWP | Dragon Lore"
+                                        className="search-input"
+                                    />
+                                    {isSearching && <span className="search-loading">🔍</span>}
+                                    {searchResults.length > 0 && (
+                                        <div className="search-results-dropdown">
+                                            {searchResults.map((r, i) => (
+                                                <div key={i} className="search-result-item" onClick={() => onSelectSearchResult(r)}>
+                                                    <span className="result-title">{r.title || r.extra?.title}</span>
+                                                    <span className="result-price">${(parseFloat(r.price?.USD || r.price?.amount || 0) / 100).toFixed(2)}</span>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
+                                </div>
                             </div>
                         </div>
                     </div>
 
-                    <div className="control-row">
+                    <div className="control-row liquidity-slider-row">
                         <div className="filter-group">
                             <label>Кількість предметів для аналізу:</label>
                             <div className="slider-container">

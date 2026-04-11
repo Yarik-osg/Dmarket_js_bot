@@ -7,7 +7,7 @@ import {
 import { FLOAT_PART_TO_RANGE } from './csFloatRanges.js';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
-const DMARKET_FEE_PERCENT = 5;
+const DMARKET_FEE_PERCENT = 2;
 
 const _parsedRangeCache = {};
 function parsedRange(token) {
@@ -166,21 +166,26 @@ function computeRiskScore({ priceVolatility, salesFrequency, marketCount, daysSi
     ));
 }
 
-function computeOpportunityScore({ roiPercent, liquidityScore, riskScore, priceVolatility, priceTrend, recentTrend, hasSpike, isStabilizing, stabilityScore, daysSinceLastSale }) {
-    const roiComponent = Math.min(roiPercent * 2, 40);
-    const liquidityComponent = Math.min((liquidityScore / 200) * 30, 30);
-    const riskComponent = Math.max(0, 30 - riskScore * 0.3);
-    let score = roiComponent + liquidityComponent + riskComponent;
+/** spreadPctForOpportunity: live (offer−target)/offer %, or weaker % from sales medians */
+function computeOpportunityScore({
+    roiPercent, liquidityScore, riskScore, spreadPctForOpportunity,
+    priceVolatility, priceTrend, recentTrend, hasSpike, isStabilizing, stabilityScore, daysSinceLastSale,
+}) {
+    const liquidityComponent = Math.min((liquidityScore / 250) * 38, 38);
+    const spreadComponent = Math.min(Math.max(0, spreadPctForOpportunity) / 25 * 33, 33);
+    const roiComponent = Math.min(roiPercent * 1.2, 14);
+    const riskComponent = Math.max(0, 15 - riskScore * 0.15);
+    let score = liquidityComponent + spreadComponent + roiComponent + riskComponent;
 
-    if (priceVolatility > 50) score -= Math.min((priceVolatility - 50) * 0.3, 20);
-    if (priceTrend < -10) score -= Math.min(Math.abs(priceTrend) * 0.5, 15);
-    if (recentTrend < -5) score -= Math.min(Math.abs(recentTrend) * 0.8, 15);
-    if (hasSpike) score -= 10;
+    if (priceVolatility > 50) score -= Math.min((priceVolatility - 50) * 0.2, 12);
+    if (priceTrend < -10) score -= Math.min(Math.abs(priceTrend) * 0.35, 10);
+    if (recentTrend < -5) score -= Math.min(Math.abs(recentTrend) * 0.5, 10);
+    if (hasSpike) score -= 6;
 
-    if (isStabilizing && stabilityScore > 70) score += 10;
-    else if (isStabilizing) score += 5;
-    if (priceTrend > 5) score += 5;
-    if (daysSinceLastSale < 1) score += 5;
+    if (isStabilizing && stabilityScore > 70) score += 8;
+    else if (isStabilizing) score += 4;
+    if (priceTrend > 5) score += 4;
+    if (daysSinceLastSale < 1) score += 4;
 
     return Math.round(Math.max(0, Math.min(100, score)));
 }
@@ -294,19 +299,28 @@ export function analyzeItem(itemGroup, sales, opts = {}) {
         : itemGroup.count > 20 ? 'Середня'
         : itemGroup.count > 10 ? 'Низька' : 'Дуже низька';
 
+    const currentMinOffer = opts.currentMinOffer || itemGroup.minPrice;
+    const currentMaxTarget = opts.currentMaxTarget || 0;
+    // Spread only when ask ≥ bid; otherwise min listing and max buy order refer to different market slices (e.g. wear) and a dollar spread is misleading.
+    const currentSpread = (currentMinOffer > 0 && currentMaxTarget > 0 && currentMinOffer >= currentMaxTarget)
+        ? currentMinOffer - currentMaxTarget
+        : null;
+
+    let spreadPctForOpportunity = 0;
+    if (currentSpread != null && currentMinOffer > 0) {
+        spreadPctForOpportunity = (currentSpread / currentMinOffer) * 100;
+    } else if (txTypes.priceSpreadPercent > 0) {
+        spreadPctForOpportunity = Math.min(txTypes.priceSpreadPercent, 15) * 0.5;
+    }
+
     const opportunityScore = computeOpportunityScore({
-        roiPercent, liquidityScore, riskScore, priceVolatility,
+        roiPercent, liquidityScore, riskScore, spreadPctForOpportunity, priceVolatility,
         priceTrend, recentTrend, hasSpike, isStabilizing, stabilityScore, daysSinceLastSale,
     });
 
     const breakEvenPrice = itemGroup.minPrice > 0 ? itemGroup.minPrice / (1 - feePercent / 100) : 0;
     const timeToSell = salesFrequency > 0 && itemGroup.count > 0
         ? itemGroup.count / salesFrequency : null;
-
-    const currentMinOffer = opts.currentMinOffer || itemGroup.minPrice;
-    const currentMaxTarget = opts.currentMaxTarget || 0;
-    const currentSpread = (currentMinOffer > 0 && currentMaxTarget > 0)
-        ? currentMinOffer - currentMaxTarget : null;
 
     return {
         title: itemGroup.title,

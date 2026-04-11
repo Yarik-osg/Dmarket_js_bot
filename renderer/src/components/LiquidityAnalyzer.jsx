@@ -37,7 +37,6 @@ function LiquidityAnalyzer() {
     const [maxPrice, setMaxPrice] = usePersistedState('liquidity_maxPrice', '', RAW);
     const [selectedFloats, setSelectedFloats] = usePersistedState('liquidity_selectedFloats', []);
     const requestDelay = 300;
-    const [minROI, setMinROI] = usePersistedState('liquidity_minROI', '', RAW);
 
     const [itemSearch, setItemSearch] = useState('');
     const [searchResults, setSearchResults] = useState([]);
@@ -47,7 +46,7 @@ function LiquidityAnalyzer() {
     // Aggregated filters object for LiquidityFilters component
     const filters = {
         selectedCategories, selectedQualities, selectedExteriors, selectedStatTrak,
-        minPrice, maxPrice, selectedFloats, minROI, maxItems, itemSearch,
+        minPrice, maxPrice, selectedFloats, maxItems, itemSearch,
     };
     const setFilters = useCallback((updater) => {
         const next = typeof updater === 'function' ? updater(filters) : updater;
@@ -58,7 +57,6 @@ function LiquidityAnalyzer() {
         if (next.minPrice !== undefined) setMinPrice(next.minPrice);
         if (next.maxPrice !== undefined) setMaxPrice(next.maxPrice);
         if (next.selectedFloats !== undefined) setSelectedFloats(next.selectedFloats);
-        if (next.minROI !== undefined) setMinROI(next.minROI);
         if (next.maxItems !== undefined) setMaxItems(next.maxItems);
         if (next.itemSearch !== undefined) setItemSearch(next.itemSearch);
     }, [filters]);
@@ -259,10 +257,7 @@ function LiquidityAnalyzer() {
     };
 
     function finishWithData(liquidityData) {
-        let filteredData = liquidityData;
-        if (minROI && parseFloat(minROI) > 0) {
-            filteredData = liquidityData.filter(item => item.roiPercent >= parseFloat(minROI));
-        }
+        const filteredData = [...liquidityData];
         filteredData.sort((a, b) => b.opportunityScore - a.opportunityScore);
         setAnalysisData(filteredData);
         setSortBy('opportunity');
@@ -275,17 +270,20 @@ function LiquidityAnalyzer() {
         const sorted = [...analysisData];
         switch (sortBy) {
             case 'opportunity': sorted.sort((a, b) => b.opportunityScore - a.opportunityScore); break;
-            case 'liquidity': sorted.sort((a, b) => b.liquidityScore - a.liquidityScore); break;
-            case 'roi': sorted.sort((a, b) => b.roiPercent - a.roiPercent); break;
             case 'profit': sorted.sort((a, b) => b.profitMargin - a.profitMargin); break;
+            case 'liquidity': sorted.sort((a, b) => b.liquidityScore - a.liquidityScore); break;
             case 'risk': sorted.sort((a, b) => a.riskScore - b.riskScore); break;
-            case 'recentSales': sorted.sort((a, b) => b.recentSalesCount - a.recentSalesCount); break;
-            case 'totalSales': sorted.sort((a, b) => b.salesCount - a.salesCount); break;
-            case 'frequency': sorted.sort((a, b) => (b.salesFrequency || 0) - (a.salesFrequency || 0)); break;
-            case 'recency': sorted.sort((a, b) => (a.daysSinceLastSale || 999) - (b.daysSinceLastSale || 999)); break;
-            case 'price': sorted.sort((a, b) => b.avgMarketPrice - a.avgMarketPrice); break;
-            case 'spread': sorted.sort((a, b) => (b.currentSpread ?? Infinity) - (a.currentSpread ?? Infinity)); break;
-            default: break;
+            case 'spread':
+                sorted.sort((a, b) => {
+                    const va = a.currentSpread;
+                    const vb = b.currentSpread;
+                    if (va == null && vb == null) return 0;
+                    if (va == null) return 1;
+                    if (vb == null) return -1;
+                    return vb - va;
+                });
+                break;
+            default: sorted.sort((a, b) => b.opportunityScore - a.opportunityScore); break;
         }
         return sorted;
     }, [analysisData, sortBy]);
