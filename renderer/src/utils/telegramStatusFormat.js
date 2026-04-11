@@ -170,7 +170,7 @@ export function formatTelegramTargetsBlock(targetsRaw, t, marketById = {}, maxIt
     const header = t('telegram.sectionTargets').replace('{n}', String(slice.length));
     const innerRaw = buildTargetsListString(slice, t, marketById);
     const inner = truncateTelegramText(
-        `${t('telegram.listHint')}\n\n${header}\n\n${innerRaw}`,
+        `${header}\n\n${innerRaw}`,
         SAFE_MAX_PRE_INNER
     );
     return {
@@ -187,7 +187,7 @@ export function formatTelegramOffersBlock(offersRaw, t, marketById = {}, maxItem
     const header = t('telegram.sectionOffers').replace('{n}', String(slice.length));
     const innerRaw = buildOffersListString(slice, t, marketById);
     const inner = truncateTelegramText(
-        `${t('telegram.listHint')}\n\n${header}\n\n${innerRaw}`,
+        `${header}\n\n${innerRaw}`,
         SAFE_MAX_PRE_INNER
     );
     return {

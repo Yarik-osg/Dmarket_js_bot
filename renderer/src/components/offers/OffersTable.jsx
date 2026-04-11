@@ -18,6 +18,7 @@ import { DMarketProductLinkButton } from '../DMarketProductLinkButton.jsx';
 import { PriceHistoryModal } from '../PriceHistoryChart.jsx';
 import { formatUsdFromApiCents } from '../../utils/formatUsd.js';
 import { getOfferId, getOfferTitle } from '../../hooks/useOffers.js';
+import { BatchActionsToolbar } from '../batch/BatchActionsToolbar.jsx';
 
 const COLUMN_STORAGE_KEY = 'offersTableColumnVisibility';
 const COLUMN_IDS = ['num', 'itemTitle', 'tradeLock', 'ourPrice', 'marketPrice', 'minPrice', 'float', 'actions'];
@@ -137,9 +138,13 @@ export function OffersTable({
     onSkipChange,
     updating,
     onDelete,
-    unknownItemLabel
+    unknownItemLabel,
+    onBatchDeleteOffers,
+    onBatchSkipParsingOffers,
+    onBatchUnskipParsingOffers
 }) {
     const [priceHistoryTitle, setPriceHistoryTitle] = useState(null);
+    const [selectedRecords, setSelectedRecords] = useState([]);
 
     const [sortStatus, setSortStatus] = useState({
         columnAccessor: 'itemTitle',
@@ -178,6 +183,12 @@ export function OffersTable({
         rows.sort((a, b) => mult * compareSort(a, b, columnAccessor, sortCtx));
         return rows;
     }, [filteredOffers, sortStatus, sortCtx]);
+
+    useEffect(() => {
+        setSelectedRecords((prev) => prev.filter((r) => sortedRecords.includes(r)));
+    }, [sortedRecords]);
+
+    const clearSelection = useCallback(() => setSelectedRecords([]), []);
 
     useEffect(() => {
         if (visibleColumns[sortStatus.columnAccessor] !== false) return;
@@ -370,7 +381,29 @@ export function OffersTable({
 
     return (
         <div className="offers-table-container offers-table-container--mantine">
-            <Group justify="flex-end" mb="xs" gap="xs" wrap="wrap">
+            <Group justify="space-between" align="flex-end" mb="xs" gap="xs" wrap="wrap">
+                <BatchActionsToolbar
+                    variant="offers"
+                    t={t}
+                    selectedCount={selectedRecords.length}
+                    disabled={updating}
+                    clearSelection={clearSelection}
+                    onBatchDelete={
+                        onBatchDeleteOffers
+                            ? (clearSel) => onBatchDeleteOffers(selectedRecords, clearSel)
+                            : undefined
+                    }
+                    onBatchSkipParsing={
+                        onBatchSkipParsingOffers
+                            ? (clearSel) => onBatchSkipParsingOffers(selectedRecords, clearSel)
+                            : undefined
+                    }
+                    onBatchUnskipParsing={
+                        onBatchUnskipParsingOffers
+                            ? (clearSel) => onBatchUnskipParsingOffers(selectedRecords, clearSel)
+                            : undefined
+                    }
+                />
                 <Menu shadow="md" width={260} position="bottom-end">
                     <Menu.Target>
                         <Button
@@ -410,6 +443,8 @@ export function OffersTable({
                 columns={columns}
                 sortStatus={sortStatus}
                 onSortStatusChange={setSortStatus}
+                selectedRecords={selectedRecords}
+                onSelectedRecordsChange={setSelectedRecords}
                 idAccessor={(record) => {
                     const id = getOfferId(record);
                     if (id != null && id !== '') return String(id);

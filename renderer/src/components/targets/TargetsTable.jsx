@@ -9,6 +9,7 @@ import { QuantityEditor } from './QuantityEditor.jsx';
 import { DMarketProductLinkButton } from '../DMarketProductLinkButton.jsx';
 import { PriceHistoryModal } from '../PriceHistoryChart.jsx';
 import { formatUsdFromApiCents } from '../../utils/formatUsd.js';
+import { BatchActionsToolbar } from '../batch/BatchActionsToolbar.jsx';
 
 const COLUMN_STORAGE_KEY = 'targetsTableColumnVisibility';
 
@@ -126,9 +127,12 @@ export function TargetsTable({
     onDelete,
     getFloatRange,
     unknownItemLabel,
-    marketLegendText
+    marketLegendText,
+    onBatchDeleteTargets,
+    onBatchDeactivateTargets
 }) {
     const [priceHistoryTitle, setPriceHistoryTitle] = useState(null);
+    const [selectedRecords, setSelectedRecords] = useState([]);
 
     const [sortStatus, setSortStatus] = useState({
         columnAccessor: 'itemTitle',
@@ -174,6 +178,12 @@ export function TargetsTable({
         rows.sort((a, b) => mult * compareSort(a, b, columnAccessor, sortCtx));
         return rows;
     }, [filteredTargets, sortStatus, sortCtx]);
+
+    useEffect(() => {
+        setSelectedRecords((prev) => prev.filter((r) => sortedRecords.includes(r)));
+    }, [sortedRecords]);
+
+    const clearSelection = useCallback(() => setSelectedRecords([]), []);
 
     useEffect(() => {
         if (visibleColumns[sortStatus.columnAccessor] !== false) return;
@@ -437,7 +447,24 @@ export function TargetsTable({
 
     return (
         <div className="targets-table-container targets-table-container--mantine">
-            <Group justify="flex-end" mb="xs" gap="xs" wrap="wrap">
+            <Group justify="space-between" align="flex-end" mb="xs" gap="xs" wrap="wrap">
+                <BatchActionsToolbar
+                    variant="targets"
+                    t={t}
+                    selectedCount={selectedRecords.length}
+                    disabled={updating}
+                    clearSelection={clearSelection}
+                    onBatchDelete={
+                        onBatchDeleteTargets
+                            ? (clearSel) => onBatchDeleteTargets(selectedRecords, clearSel)
+                            : undefined
+                    }
+                    onBatchDeactivate={
+                        onBatchDeactivateTargets
+                            ? (clearSel) => onBatchDeactivateTargets(selectedRecords, clearSel)
+                            : undefined
+                    }
+                />
                 <Menu shadow="md" width={260} position="bottom-end">
                     <Menu.Target>
                         <Button
@@ -477,6 +504,8 @@ export function TargetsTable({
                 columns={columns}
                 sortStatus={sortStatus}
                 onSortStatusChange={setSortStatus}
+                selectedRecords={selectedRecords}
+                onSelectedRecordsChange={setSelectedRecords}
                 idAccessor={(record) => {
                     const id = getTargetRowId(record);
                     if (id != null && id !== '') return String(id);

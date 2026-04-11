@@ -22,6 +22,7 @@ import { usePersistedTargetMaxPrices } from '../hooks/usePersistedTargetMaxPrice
 import { useMarketBuyOrderPrices } from '../hooks/useMarketBuyOrderPrices.js';
 import { useTargetPriceAutomation } from '../hooks/useTargetPriceAutomation.js';
 import { TargetsTable } from './targets/TargetsTable.jsx';
+import { BatchConfirmDetails } from './batch/BatchConfirmDetails.jsx';
 import { PriceResetPanel } from './targets/PriceResetPanel.jsx';
 
 function TargetsList({ isAutoUpdatingEnabled = false }) {
@@ -353,6 +354,139 @@ function TargetsList({ isAutoUpdatingEnabled = false }) {
             setUpdating(false);
         }
     };
+
+    const getTargetRowIdForBatch = (target) =>
+        target.targetId || target.itemId || target.instantTargetId;
+
+    const buildTargetBatchModalItems = useCallback(
+        (rows) =>
+            rows.map((target, idx) => {
+                const title =
+                    target.itemTitle || target.title || target.extra?.name || t('target.unknownItem');
+                const price = formatUsdFromApiCents(target.price?.USD || 'N/A');
+                const status = target.status || '—';
+                const amount = target.amount ?? 1;
+                const fp = target.extra?.floatPartValue || target.attributes?.floatPartValue;
+                const tid = getTargetRowIdForBatch(target);
+                const lines = [
+                    `${t('target.price')}: $${price}`,
+                    `${t('batch.status')} ${status}`,
+                    `${t('targets.quantity')}: ${amount}`,
+                    fp ? `${t('target.float')}: ${fp}` : null
+                ].filter(Boolean);
+                return { key: tid ? String(tid) : `target-${idx}`, title, lines };
+            }),
+        [t]
+    );
+
+    const handleBatchDeleteTargets = useCallback(
+        (selected, clearSelection) => {
+            if (!selected?.length || !apiService) return;
+            const ids = selected.map(getTargetRowIdForBatch).filter((id) => id != null && id !== '');
+            if (ids.length === 0) {
+                showAlertModal({
+                    title: t('targets.error'),
+                    message: t('targets.deleteError')
+                });
+                return;
+            }
+            const items = buildTargetBatchModalItems(selected);
+            showConfirmModal({
+                title: t('common.delete'),
+                message: (
+                    <BatchConfirmDetails
+                        intro={t('batch.confirmDeleteTargets').replace('{n}', String(ids.length))}
+                        items={items}
+                    />
+                ),
+                onConfirm: async () => {
+                    try {
+                        await apiService.deleteTargetsBatch(ids);
+                        addLog({
+                            type: 'success',
+                            category: 'target',
+                            message: `Видалено таргетів: ${ids.length}`,
+                            details: { count: ids.length }
+                        });
+                        await loadTargetsWithMaxPrices();
+                        clearSelection();
+                    } catch (err) {
+                        addLog({
+                            type: 'error',
+                            category: 'target',
+                            message: `Помилка масового видалення таргетів: ${err.message}`,
+                            details: { count: ids.length, error: err.message }
+                        });
+                        showAlertModal({
+                            title: t('targets.error'),
+                            message: t('targets.deleteError') + ': ' + err.message
+                        });
+                    }
+                },
+                confirmText: t('common.delete'),
+                cancelText: t('common.cancel'),
+                confirmVariant: 'danger'
+            });
+        },
+        [apiService, loadTargetsWithMaxPrices, addLog, t, buildTargetBatchModalItems]
+    );
+
+    const handleBatchDeactivateTargets = useCallback(
+        (selected, clearSelection) => {
+            if (!apiService) return;
+            const active = selected.filter((x) => (x.status || '').toLowerCase() === 'active');
+            if (active.length === 0) {
+                showAlertModal({
+                    title: t('targets.error'),
+                    message: t('batch.noActiveToDeactivate')
+                });
+                return;
+            }
+            const ids = active.map(getTargetRowIdForBatch).filter((id) => id != null && id !== '');
+            if (ids.length === 0) return;
+            const items = buildTargetBatchModalItems(active);
+            showConfirmModal({
+                title: t('batch.deactivate'),
+                message: (
+                    <BatchConfirmDetails
+                        intro={t('batch.confirmDeactivateTargets').replace('{n}', String(ids.length))}
+                        items={items}
+                    />
+                ),
+                onConfirm: async () => {
+                    try {
+                        setUpdating(true);
+                        await apiService.deactivateTargets(ids);
+                        addLog({
+                            type: 'success',
+                            category: 'target',
+                            message: `Деактивовано таргетів: ${ids.length}`,
+                            details: { count: ids.length }
+                        });
+                        await loadTargetsWithMaxPrices();
+                        clearSelection();
+                    } catch (err) {
+                        addLog({
+                            type: 'error',
+                            category: 'target',
+                            message: `Помилка масової деактивації: ${err.message}`,
+                            details: { count: ids.length, error: err.message }
+                        });
+                        showAlertModal({
+                            title: t('targets.error'),
+                            message: 'Помилка деактивації таргета: ' + (err.message || 'Невідома помилка')
+                        });
+                    } finally {
+                        setUpdating(false);
+                    }
+                },
+                confirmText: t('batch.deactivate'),
+                cancelText: t('common.cancel'),
+                confirmVariant: 'primary'
+            });
+        },
+        [apiService, loadTargetsWithMaxPrices, addLog, t, setUpdating, buildTargetBatchModalItems]
+    );
 
     const handleAmountChange = async (
         targetId,
@@ -695,6 +829,8 @@ function TargetsList({ isAutoUpdatingEnabled = false }) {
                 getFloatRange={getFloatRange}
                 unknownItemLabel={t('target.unknownItem')}
                 marketLegendText={t('targets.marketLegend')}
+                onBatchDeleteTargets={handleBatchDeleteTargets}
+                onBatchDeactivateTargets={handleBatchDeactivateTargets}
             />
         </div>
     );

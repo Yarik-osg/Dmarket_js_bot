@@ -99,6 +99,18 @@
   "common.delete": "Видалити",
   "common.edit": "Редагувати",
   "common.close": "Закрити",
+  "batch.selected": "Вибрано:",
+  "batch.actions": "Дії",
+  "batch.delete": "Видалити",
+  "batch.skipParsing": "Пропустити в парсингу",
+  "batch.unskipParsing": "Повернути в парсинг",
+  "batch.deactivate": "Деактивувати",
+  "batch.clearSelection": "Зняти вибір",
+  "batch.confirmDeleteOffers": "Буде видалено оферів: {n}. Цю дію не можна скасувати.",
+  "batch.confirmDeleteTargets": "Буде видалено таргетів: {n}. Цю дію не можна скасувати.",
+  "batch.confirmDeactivateTargets": "Буде деактивовано активних таргетів: {n}.",
+  "batch.noActiveToDeactivate": "Серед вибраних немає активних таргетів.",
+  "batch.status": "Статус:",
   "nav.analytics": "Аналітика",
   "nav.notifications": "Сповіщення",
   "analytics.title": "Аналітика",
@@ -218,7 +230,6 @@
   "telegram.off": "вимкнено",
   "telegram.balanceError": "Не вдалося отримати баланс: {error}",
   "telegram.labelYour": "Твоя:",
-  "telegram.labelMarket": "Ринок:",
-  "telegram.listHint": "Моноширинний список. «Ринок» — орієнтовна ціна на маркеті (таргети: найвищий buy; офери: найнижчий sell для того ж зрізу)."
+  "telegram.labelMarket": "Ринок:"
 }
 

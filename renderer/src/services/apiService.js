@@ -126,11 +126,17 @@ class ApiService {
         return response;
     }
 
-    async deleteTarget(targetId) {
+    async deleteTargetsBatch(targetIds) {
+        const uniq = [...new Set((targetIds || []).filter((id) => id != null && id !== ''))];
+        if (uniq.length === 0) return;
         const path = `/marketplace-api/v1/user-targets/delete`;
-        // Include targetId in the request body for DELETE
-        console.log('delete targetId', targetId);
-        return await this.client.call('POST', path, { Targets: [{ "TargetID": targetId }] });
+        const Targets = uniq.map((id) => ({ TargetID: id }));
+        console.log('deleteTargetsBatch', Targets.length);
+        return await this.client.call('POST', path, { Targets });
+    }
+
+    async deleteTarget(targetId) {
+        return await this.deleteTargetsBatch([targetId]);
     }
 
     async activateTarget(targetId) {
@@ -143,14 +149,20 @@ class ApiService {
         return await this.client.call('POST', path, requestBody);
     }
 
-    async deactivateTarget(targetId) {
+    async deactivateTargets(targetIds) {
+        const uniq = [...new Set((targetIds || []).filter((id) => id != null && id !== ''))];
+        if (uniq.length === 0) return;
         const path = '/exchange/v1/target/deactivate';
         const requestBody = {
             force: true,
-            targetIds: [targetId]
+            targetIds: uniq
         };
-        console.log('deactivate target', targetId, requestBody);
+        console.log('deactivateTargets', requestBody);
         return await this.client.call('POST', path, requestBody);
+    }
+
+    async deactivateTarget(targetId) {
+        return await this.deactivateTargets([targetId]);
     }
 
     // Exchange API - Market Items
@@ -359,25 +371,28 @@ class ApiService {
     // Marketplace API - Delete Offers (v2 batch)
     // POST /marketplace-api/v2/offers:batchDelete
     // Body: { requests: [{ offerId: string }] }
-    async deleteOffer(offer) {
+    async deleteOffersBatch(offers) {
         const path = '/marketplace-api/v2/offers:batchDelete';
-        const offerId =
-            offer?.extra?.offerId ||
-            offer?.offerId ||
-            offer?.instantOfferId ||
-            offer?.itemId;
-
-        if (!offerId) {
-            throw new Error('offerId is required to delete an offer');
+        const requests = [];
+        for (const offer of offers || []) {
+            const offerId =
+                offer?.extra?.offerId ||
+                offer?.offerId ||
+                offer?.instantOfferId ||
+                offer?.itemId;
+            if (!offerId) {
+                throw new Error('offerId is required to delete an offer');
+            }
+            requests.push({ offerId: String(offerId) });
         }
-
-        const requestBody = {
-            requests: [{ offerId: String(offerId) }]
-        };
-
-        console.log('delete offer', offer);
-        console.log('delete offer:', requestBody);
+        if (requests.length === 0) return;
+        const requestBody = { requests };
+        console.log('deleteOffersBatch:', requestBody.requests.length);
         return await this.client.call('POST', path, requestBody);
+    }
+
+    async deleteOffer(offer) {
+        return await this.deleteOffersBatch([offer]);
     }
 }
 

@@ -10,7 +10,8 @@ import '../styles/OffersList.css';
 import { formatUsdFromApiCents } from '../utils/formatUsd.js';
 import OfferForm from './OfferForm.jsx';
 import { OffersTable } from './offers/OffersTable.jsx';
-import { useOffers, getOfferId } from '../hooks/useOffers.js';
+import { useOffers, getOfferId, getOfferTitle } from '../hooks/useOffers.js';
+import { BatchConfirmDetails } from './batch/BatchConfirmDetails.jsx';
 import { useOfferMarketPrices } from '../hooks/useOfferMarketPrices.js';
 import { usePersistedOfferMinPrices } from '../hooks/usePersistedOfferMinPrices.js';
 import { useOfferAutoUpdate } from '../hooks/useOfferAutoUpdate.js';
@@ -288,6 +289,93 @@ function OffersList({ isAutoUpdatingEnabled = false, onToggleAutoUpdate }) {
         [apiService, loadOffers, addLog]
     );
 
+    const handleBatchDeleteOffers = useCallback(
+        (offers, clearSelection) => {
+            if (!offers?.length || !apiService) return;
+            const items = offers.map((offer, idx) => {
+                const title = getOfferTitle(offer, t('target.unknownItem'));
+                const price = formatUsdFromApiCents(offer.price?.USD || 'N/A');
+                const oid = getOfferId(offer);
+                const fv = offer.extra?.floatValue
+                    ? parseFloat(offer.extra.floatValue).toFixed(5)
+                    : null;
+                const lines = [
+                    `${t('offers.ourPrice')}: $${price}`,
+                    fv ? `${t('offers.float')}: ${fv}` : null
+                ].filter(Boolean);
+                return { key: oid ? String(oid) : `offer-${idx}`, title, lines };
+            });
+            showConfirmModal({
+                title: t('common.delete'),
+                message: (
+                    <BatchConfirmDetails
+                        intro={t('batch.confirmDeleteOffers').replace('{n}', String(offers.length))}
+                        items={items}
+                    />
+                ),
+                onConfirm: async () => {
+                    try {
+                        await apiService.deleteOffersBatch(offers);
+                        addLog({
+                            type: 'success',
+                            category: 'offer',
+                            message: `Видалено оферів: ${offers.length}`,
+                            details: { count: offers.length }
+                        });
+                        await new Promise((r) => setTimeout(r, 500));
+                        await loadOffers();
+                        clearSelection();
+                    } catch (err) {
+                        addLog({
+                            type: 'error',
+                            category: 'offer',
+                            message: `Помилка масового видалення оферів: ${err.message}`,
+                            details: { count: offers.length, error: err.message }
+                        });
+                        showAlertModal({
+                            title: t('offers.error'),
+                            message: err.message || String(err)
+                        });
+                    }
+                },
+                confirmText: t('common.delete'),
+                cancelText: t('common.cancel'),
+                confirmVariant: 'danger'
+            });
+        },
+        [apiService, loadOffers, addLog, t]
+    );
+
+    const handleBatchSkipParsingOffers = useCallback(
+        (offers, clearSelection) => {
+            const itemIds = offers.map((o) => o.itemId).filter((id) => id != null && id !== '');
+            if (itemIds.length === 0) return;
+            setSkipForParsing((prev) => {
+                const next = { ...prev };
+                for (const id of itemIds) next[id] = true;
+                return next;
+            });
+            clearSelection();
+        },
+        [setSkipForParsing]
+    );
+
+    const handleBatchUnskipParsingOffers = useCallback(
+        (offers, clearSelection) => {
+            const itemIds = offers.map((o) => o.itemId).filter((id) => id != null && id !== '');
+            if (itemIds.length === 0) return;
+            setSkipForParsing((prev) => {
+                const next = { ...prev };
+                for (const id of itemIds) {
+                    if (next[id] === true) delete next[id];
+                }
+                return next;
+            });
+            clearSelection();
+        },
+        [setSkipForParsing]
+    );
+
     const filteredOffers = useMemo(() => {
         const q = debouncedSearch.trim().toLowerCase();
         if (!q) return offers;
@@ -374,6 +462,9 @@ function OffersList({ isAutoUpdatingEnabled = false, onToggleAutoUpdate }) {
                 updating={updating}
                 onDelete={handleDelete}
                 unknownItemLabel={t('target.unknownItem')}
+                onBatchDeleteOffers={handleBatchDeleteOffers}
+                onBatchSkipParsingOffers={handleBatchSkipParsingOffers}
+                onBatchUnskipParsingOffers={handleBatchUnskipParsingOffers}
             />
 
             {showOfferForm && (

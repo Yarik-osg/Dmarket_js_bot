@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useCallback, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { useAuth } from '../contexts/AuthContext.jsx';
 import { ApiService } from '../services/apiService.js';
 import {
@@ -198,7 +199,9 @@ function PriceHistoryModal({ itemTitle, onClose }) {
         };
     }, [processedData]);
 
-    return (
+    /* Portal: fixed overlay must not sit under .targets-table-container (backdrop-filter / overflow),
+       or it sizes to that small box when the table has few rows. */
+    return createPortal(
         <div className="price-history-overlay" onClick={onClose}>
             <div className="price-history-modal price-history-modal-lg" onClick={e => e.stopPropagation()}>
                 <div className="price-history-modal-header">
@@ -396,7 +399,8 @@ function PriceHistoryModal({ itemTitle, onClose }) {
                     </>
                 )}
             </div>
-        </div>
+        </div>,
+        document.body
     );
 }
 
