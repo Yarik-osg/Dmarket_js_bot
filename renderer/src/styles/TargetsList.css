@@ -581,8 +581,17 @@
     box-shadow: 0 0 0 3px var(--accent-light);
 }
 
+.quantity-editor-wrap {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    min-width: 112px;
+    justify-content: flex-start;
+}
+
 .quantity-input {
     width: 70px;
+    min-width: 56px;
     padding: 8px;
     background: var(--bg-primary);
     border: 2px solid var(--border-color);

@@ -25,6 +25,21 @@ import { TargetsTable } from './targets/TargetsTable.jsx';
 import { BatchConfirmDetails } from './batch/BatchConfirmDetails.jsx';
 import { PriceResetPanel } from './targets/PriceResetPanel.jsx';
 
+function normalizeTargetUpdateErrorCode(err) {
+    if (!err) return null;
+    if (err.errorCode) return String(err.errorCode);
+    const ft = err.failedTargets?.[0]?.errorCode || err.failed_targets?.[0]?.errorCode;
+    if (ft) return String(ft);
+    const m = typeof err.message === 'string' ? err.message.match(/\(([^)]+)\)\s*$/) : null;
+    return m ? m[1] : null;
+}
+
+function isTargetUpdatedRecentlyError(err) {
+    const code = normalizeTargetUpdateErrorCode(err);
+    if (!code) return false;
+    return code.replace(/_/g, '').toLowerCase() === 'targetupdatedrecently';
+}
+
 function TargetsList({ isAutoUpdatingEnabled = false }) {
     const { t } = useLocale();
     const { client } = useAuth();
@@ -561,16 +576,14 @@ function TargetsList({ isAutoUpdatingEnabled = false }) {
             }
         } catch (err) {
             console.error('Error updating target amount:', err);
-            const errorCode =
-                err.errorCode || (err.message?.includes('(') ? err.message.match(/\(([^)]+)\)/)?.[1] : null);
-            const isFailedTargetsError =
-                errorCode === 'TargetUpdatedRecently' || err.errorCode === 'TargetUpdatedRecently';
+            const errorCode = normalizeTargetUpdateErrorCode(err);
+            const recentlyBlocked = isTargetUpdatedRecentlyError(err);
 
             addLog({
-                type: isFailedTargetsError ? 'warning' : 'error',
+                type: recentlyBlocked ? 'warning' : 'error',
                 category: 'target',
-                message: isFailedTargetsError
-                    ? `Не вдалося оновити кількість таргета: ${title} (${errorCode})`
+                message: recentlyBlocked
+                    ? `Кількість не змінено (обмеження DMarket ~15 хв): ${title}`
                     : `Помилка оновлення кількості таргета: ${title}`,
                 details: {
                     title,
@@ -580,55 +593,93 @@ function TargetsList({ isAutoUpdatingEnabled = false }) {
                 }
             });
 
-            if (!isFailedTargetsError) {
+            if (recentlyBlocked) {
                 showAlertModal({
-                    title: 'Помилка',
+                    title: t('targets.targetUpdatedRecentlyTitle'),
+                    message: t('targets.targetUpdatedRecentlyMessage')
+                });
+            } else {
+                showAlertModal({
+                    title: t('targets.error'),
                     message: 'Помилка оновлення кількості: ' + (err.message || 'Невідома помилка')
                 });
             }
         } finally {
             setUpdating(false);
+            setPendingAmounts((prev) => {
+                const next = { ...prev };
+                delete next[targetId];
+                return next;
+            });
         }
     };
 
-    const handleQuantityBlur = (
-        targetId,
-        itemId,
-        raw,
-        title,
-        gameId,
-        floatPartValue,
-        phase,
-        paintSeed,
-        amount,
-        price
-    ) => {
+    const clearQuantityPending = (targetId) =>
+        setPendingAmounts((prev) => {
+            const next = { ...prev };
+            delete next[targetId];
+            return next;
+        });
+
+    /** Blur: скинути чернетку, якщо значення невалідне або не відрізняється від поточної кількості. */
+    const handleQuantityBlurDiscard = (targetId, raw, amount) => {
         const newAmount = parseInt(raw, 10);
-        if (!isNaN(newAmount) && newAmount >= 1 && newAmount !== amount) {
-            handleAmountChange(
-                targetId,
-                itemId,
-                newAmount,
-                title,
-                gameId,
-                floatPartValue,
-                phase,
-                paintSeed,
-                amount,
-                price
-            );
-            setPendingAmounts((prev) => {
-                const updated = { ...prev };
-                delete updated[targetId];
-                return updated;
-            });
-        } else if (isNaN(newAmount) || newAmount < 1) {
-            setPendingAmounts((prev) => {
-                const updated = { ...prev };
-                delete updated[targetId];
-                return updated;
-            });
+        if (isNaN(newAmount) || newAmount < 1 || newAmount === amount) {
+            clearQuantityPending(targetId);
         }
+    };
+
+    /** Кнопка ✓ або Enter: підтвердження модалкою, потім API. */
+    const handleQuantityApply = (targetId, row) => {
+        const raw = pendingAmounts[targetId];
+        if (raw === undefined) return;
+
+        const newAmount = parseInt(raw, 10);
+        if (isNaN(newAmount) || newAmount < 1) {
+            clearQuantityPending(targetId);
+            return;
+        }
+        if (newAmount === row.amount) {
+            clearQuantityPending(targetId);
+            return;
+        }
+
+        const { itemId, title, gameId, floatPartValue, phase, paintSeed, amount, price } = row;
+
+        const intro = t('targets.quantityChangeIntro')
+            .replace('{title}', title)
+            .replace('{from}', String(amount))
+            .replace('{to}', String(newAmount));
+
+        showConfirmModal({
+            title: t('targets.quantityChangeTitle'),
+            message: (
+                <div>
+                    <p style={{ margin: '0 0 12px' }}>{intro}</p>
+                    <p style={{ margin: 0, fontSize: '13px', color: 'var(--text-secondary, #aaa)' }}>
+                        {t('targets.quantityChangeNote')}
+                    </p>
+                </div>
+            ),
+            onConfirm: async () => {
+                await handleAmountChange(
+                    targetId,
+                    itemId,
+                    newAmount,
+                    title,
+                    gameId,
+                    floatPartValue,
+                    phase,
+                    paintSeed,
+                    amount,
+                    price
+                );
+            },
+            onCancel: () => clearQuantityPending(targetId),
+            confirmText: t('targets.quantityChangeConfirm'),
+            cancelText: t('common.cancel'),
+            confirmVariant: 'primary'
+        });
     };
 
     const handleApplyMaxPrice = async (itemId) => {
@@ -821,7 +872,8 @@ function TargetsList({ isAutoUpdatingEnabled = false }) {
                 onQuantityPendingChange={(targetId, val) =>
                     setPendingAmounts((prev) => ({ ...prev, [targetId]: val }))
                 }
-                onQuantityBlur={handleQuantityBlur}
+                onQuantityBlurDiscard={handleQuantityBlurDiscard}
+                onQuantityApply={handleQuantityApply}
                 updating={updating}
                 onDeactivate={handleDeactivate}
                 onActivate={handleActivate}

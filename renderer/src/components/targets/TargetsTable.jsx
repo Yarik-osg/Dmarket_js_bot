@@ -120,7 +120,8 @@ export function TargetsTable({
     onMaxPricePendingChange,
     onApplyMaxPrice,
     onQuantityPendingChange,
-    onQuantityBlur,
+    onQuantityBlurDiscard,
+    onQuantityApply,
     updating,
     onDeactivate,
     onActivate,
@@ -296,7 +297,7 @@ export function TargetsTable({
                 accessor: 'amount',
                 title: t('targets.quantity'),
                 sortable: true,
-                width: 90,
+                width: 132,
                 render: (target) => {
                     const targetId = getTargetRowId(target);
                     const itemId = target.itemId;
@@ -308,26 +309,26 @@ export function TargetsTable({
                     const phase = target.attributes?.phase || target.extra?.phase || null;
                     const paintSeed = target.attributes?.paintSeed || target.extra?.paintSeed || null;
                     const price = target.price?.USD || 'N/A';
+                    const rowCtx = {
+                        itemId,
+                        title,
+                        gameId,
+                        floatPartValue: floatPartValue !== 'N/A' ? floatPartValue : null,
+                        phase,
+                        paintSeed,
+                        amount,
+                        price
+                    };
                     return (
                         <QuantityEditor
                             targetId={targetId}
                             amount={amount}
                             pendingAmounts={pendingAmounts}
                             onPendingChange={onQuantityPendingChange}
-                            onBlurCommit={(tid, val) =>
-                                onQuantityBlur(
-                                    tid,
-                                    itemId,
-                                    val,
-                                    title,
-                                    gameId,
-                                    floatPartValue !== 'N/A' ? floatPartValue : null,
-                                    phase,
-                                    paintSeed,
-                                    amount,
-                                    price
-                                )
-                            }
+                            onBlurDiscard={(tid, val) => onQuantityBlurDiscard(tid, val, amount)}
+                            onApply={(tid) => onQuantityApply(tid, rowCtx)}
+                            disabled={updating}
+                            applyTitle={t('targets.quantityApplyTitle')}
                         />
                     );
                 }
@@ -400,7 +401,8 @@ export function TargetsTable({
             onMaxPricePendingChange,
             onApplyMaxPrice,
             onQuantityPendingChange,
-            onQuantityBlur,
+            onQuantityBlurDiscard,
+            onQuantityApply,
             updating,
             onDeactivate,
             onActivate,
