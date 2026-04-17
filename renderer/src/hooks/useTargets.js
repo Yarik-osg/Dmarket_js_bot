@@ -50,13 +50,14 @@ export function useTargets() {
                 } catch (err) {
                     console.error('Error loading user targets:', err);
                     setError(err.message || 'Failed to load targets');
-                    nextTargets = [];
-                    setTargets([]);
+                    // Do not clear targets or return [] — that would prune all local max prices in TargetsList.
+                    return undefined;
                 }
             }
         } catch (err) {
             setError(err.message);
             console.error('Error loading targets:', err);
+            return undefined;
         } finally {
             loadingRef.current = false;
             setLoading(false);

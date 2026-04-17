@@ -834,8 +834,10 @@ function TargetsList({ isAutoUpdatingEnabled = false }) {
 
             {loading && <div className="loading">{t('targets.loading')}</div>}
             {error && (
-                <div className="error">
-                    {t('targets.error')}: {error}
+                <div className="error targets-page-error" role="alert">
+                    <div className="targets-page-error__title">{t('targets.error')}</div>
+                    <p className="targets-page-error__message">{error}</p>
+                    <p className="targets-page-error__hint">{t('targets.errorHint')}</p>
                 </div>
             )}
             {authError && (

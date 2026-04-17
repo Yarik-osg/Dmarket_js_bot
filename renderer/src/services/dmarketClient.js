@@ -2,6 +2,7 @@
 
 import nacl from 'tweetnacl';
 import { reportDmarketHttpResult } from '../utils/apiHealthBridge.js';
+import { summarizeDmarketHttpErrorBody } from '../utils/dmarketHttpErrorMessage.js';
 
 function byteToHexString(uint8arr) {
     if (!uint8arr) {
@@ -121,7 +122,9 @@ export class DMarketClient {
                     path: apiUrlPath,
                     retryAfterSec
                 });
-                throw new Error(`API call failed with status code ${response.status}: ${data}`);
+                const err = new Error(summarizeDmarketHttpErrorBody(response.status, data));
+                err._dmarketHttpErrorReported = true;
+                throw err;
             }
 
             let parsed;
@@ -140,14 +143,16 @@ export class DMarketClient {
 
             return parsed;
         } catch (error) {
-            const msg = error?.message || '';
-            if (!msg.startsWith('API call failed') && msg !== 'Failed to parse JSON response.') {
-                reportDmarketHttpResult({
-                    ok: false,
-                    status: 0,
-                    method,
-                    path: apiUrlPath
-                });
+            if (!error?._dmarketHttpErrorReported) {
+                const msg = error?.message || '';
+                if (msg !== 'Failed to parse JSON response.') {
+                    reportDmarketHttpResult({
+                        ok: false,
+                        status: 0,
+                        method,
+                        path: apiUrlPath
+                    });
+                }
             }
             throw error;
         }

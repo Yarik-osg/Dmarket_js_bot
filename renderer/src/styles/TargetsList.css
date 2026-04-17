@@ -728,6 +728,35 @@
     border: 2px solid var(--error-color);
 }
 
+.targets-page-error {
+    text-align: left;
+    padding: 16px 20px;
+    margin-bottom: 12px;
+}
+
+.targets-page-error__title {
+    font-weight: 700;
+    font-size: 1.05em;
+    margin: 0;
+}
+
+.targets-page-error__message {
+    margin: 10px 0 0;
+    font-weight: 500;
+    line-height: 1.45;
+    word-break: break-word;
+    white-space: pre-wrap;
+    color: var(--text-primary);
+}
+
+.targets-page-error__hint {
+    margin: 12px 0 0;
+    font-size: 0.9em;
+    font-weight: 400;
+    line-height: 1.4;
+    color: var(--text-secondary, #888);
+}
+
 /* Mantine DataTable (замовлення) — slate як у решти UI, не дефолтний чорний Mantine */
 .targets-table-container--mantine {
     flex: 1;

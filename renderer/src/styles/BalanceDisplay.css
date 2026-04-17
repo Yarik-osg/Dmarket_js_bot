@@ -200,3 +200,49 @@
 .balance-error {
     color: var(--error-color);
 }
+
+.balance-display--error .balance-error {
+    text-align: left;
+    padding: 4px 0 8px;
+}
+
+.balance-error-detail {
+    margin: 0;
+    font-size: 11px;
+    line-height: 1.4;
+    color: var(--text-secondary);
+    word-break: break-word;
+    white-space: pre-wrap;
+}
+
+.balance-error-retry {
+    margin-top: 12px;
+    display: flex;
+    justify-content: flex-start;
+}
+
+.balance-error-retry-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 14px;
+    font-size: 12px;
+    font-weight: 600;
+    color: #fff;
+    border: none;
+    border-radius: var(--radius-md);
+    cursor: pointer;
+    background: linear-gradient(135deg, var(--accent-color), var(--info-color));
+    box-shadow: 0 4px 12px rgba(59, 130, 246, 0.25);
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.balance-error-retry-btn:hover:not(:disabled) {
+    transform: translateY(-1px);
+    box-shadow: 0 6px 16px rgba(59, 130, 246, 0.35);
+}
+
+.balance-error-retry-btn:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+}

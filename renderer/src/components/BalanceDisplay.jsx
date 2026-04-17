@@ -70,76 +70,128 @@ function BalanceDisplay() {
         }
     }, [apiService]);
 
-    const loadBalance = async () => {
-        if (!apiService || loadingRef.current) return;
-        
-        // Don't retry if we got 404 or 403 error
-        if (errorRef.current?.includes('404') || errorRef.current?.includes('403')) {
-            return;
-        }
+    const loadBalance = useCallback(
+        async (forceRetry = false) => {
+            if (!apiService || loadingRef.current) return;
 
-        loadingRef.current = true;
-        setLoading(true);
-        setError(null);
-        
-        try {
-            const data = await apiService.getUserBalance();
-            console.log('balance data', data);
-            setBalance(data);
+            if (
+                !forceRetry &&
+                (errorRef.current?.includes('404') || errorRef.current?.includes('403'))
+            ) {
+                return;
+            }
+
+            loadingRef.current = true;
+            setLoading(true);
             setError(null);
-            errorRef.current = null;
-            
-            // Check for low balance
-            checkLowBalance(data);
-            
-            // Store last balance for comparison
-            lastBalanceRef.current = data;
-        } catch (err) {
-            console.error('Error loading balance:', err);
-            const errorMsg = err.message || 'Unknown error';
-            setError(errorMsg);
-            errorRef.current = errorMsg;
-        } finally {
-            setLoading(false);
-            loadingRef.current = false;
-        }
-    };
 
-    // Load balance on mount and periodically
+            try {
+                const data = await apiService.getUserBalance();
+                console.log('balance data', data);
+                setBalance(data);
+                setError(null);
+                errorRef.current = null;
+
+                checkLowBalance(data);
+
+                lastBalanceRef.current = data;
+            } catch (err) {
+                console.error('Error loading balance:', err);
+                const errorMsg = err.message || 'Unknown error';
+                setError(errorMsg);
+                errorRef.current = errorMsg;
+            } finally {
+                setLoading(false);
+                loadingRef.current = false;
+            }
+        },
+        [apiService, checkLowBalance]
+    );
+
     useEffect(() => {
         if (apiService) {
-            loadBalance();
+            loadBalance(false);
             loadListedOffersNet();
-            // Check balance every 5 minutes
             const interval = setInterval(() => {
-                loadBalance();
+                loadBalance(false);
                 loadListedOffersNet();
             }, 5 * 60 * 1000);
-            
+
             return () => clearInterval(interval);
         }
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [apiService, loadListedOffersNet]);
+    }, [apiService, loadBalance, loadListedOffersNet]);
 
-    const handleRefresh = () => {
-        loadBalance();
+    const handleRefresh = useCallback(() => {
+        loadBalance(true);
         loadListedOffersNet();
-    };
+    }, [loadBalance, loadListedOffersNet]);
 
     if (!client) return null;
 
     if (loading && !balance) {
         return (
             <div className="balance-display">
-                <div className="balance-loading">Завантаження...</div>
+                <div className="balance-loading">{t('balance.loadingShort')}</div>
             </div>
         );
     }
 
     if (error) {
         return (
-            <div className="balance-display">
-                <div className="balance-error">Помилка завантаження балансу</div>
+            <div
+                className={`balance-display balance-display--error${
+                    sectionCollapsed ? ' balance-display--collapsed' : ''
+                }`}
+            >
+                <div className="balance-header">
+                    <button
+                        type="button"
+                        className="balance-section-toggle"
+                        onClick={toggleSectionCollapsed}
+                        aria-expanded={!sectionCollapsed}
+                        title={sectionCollapsed ? t('balance.sectionExpand') : t('balance.sectionCollapse')}
+                    >
+                        {sectionCollapsed ? (
+                            <RiArrowDownSLine className="balance-section-toggle-icon" aria-hidden />
+                        ) : (
+                            <RiArrowUpSLine className="balance-section-toggle-icon" aria-hidden />
+                        )}
+                    </button>
+                    <span className="balance-header-title">
+                        <RiWallet3Line aria-hidden /> Баланс
+                    </span>
+                    <button
+                        type="button"
+                        onClick={handleRefresh}
+                        className="balance-refresh-btn"
+                        disabled={loading}
+                        title={t('balance.refreshTitle')}
+                        aria-label={t('balance.refreshTitle')}
+                    >
+                        <RiRefreshLine
+                            style={{
+                                animation: loading ? 'spin 1s linear infinite' : 'none'
+                            }}
+                        />
+                    </button>
+                </div>
+                {!sectionCollapsed && (
+                    <>
+                        <div className="balance-error">{t('balance.loadError')}</div>
+                        <p className="balance-error-detail">{error}</p>
+                        <div className="balance-error-retry">
+                            <button
+                                type="button"
+                                className="balance-error-retry-btn"
+                                onClick={handleRefresh}
+                                disabled={loading}
+                            >
+                                <RiRefreshLine size={18} aria-hidden />
+                                {t('balance.refreshTitle')}
+                            </button>
+                        </div>
+                    </>
+                )}
             </div>
         );
     }
@@ -189,11 +241,13 @@ function BalanceDisplay() {
                 <span className="balance-header-title">
                     <RiWallet3Line aria-hidden /> Баланс
                 </span>
-                <button 
-                    onClick={handleRefresh} 
+                <button
+                    type="button"
+                    onClick={handleRefresh}
                     className="balance-refresh-btn"
                     disabled={loading}
-                    title="Оновити баланс"
+                    title={t('balance.refreshTitle')}
+                    aria-label={t('balance.refreshTitle')}
                 >
                     <RiRefreshLine style={{ 
                         animation: loading ? 'spin 1s linear infinite' : 'none' 
