@@ -7,6 +7,7 @@ import Store from 'electron-store';
 import electronUpdater from 'electron-updater';
 import { checkMacUpdate, downloadMacUpdate } from './updater/macGithub.js';
 import { getWeb3FormsAccessKey } from './feedbackWeb3Send.js';
+import { createLocalDb } from './localDb.js';
 
 const { autoUpdater } = electronUpdater;
 
@@ -51,6 +52,7 @@ loadFeedbackKeyFromDotEnv();
 
 let mainWindow;
 const store = new Store();
+const localDb = createLocalDb({ getUserDataPath: () => app.getPath('userData') });
 
 // IPC handlers for store operations
 ipcMain.handle('store-get', (event, key) => {
@@ -74,6 +76,124 @@ ipcMain.handle('store-clear', () => {
 
 ipcMain.handle('store-has', (event, key) => {
     return store.has(key);
+});
+
+ipcMain.handle('db-get-path', () => {
+    try {
+        return { ok: true, path: localDb.getPath() };
+    } catch (e) {
+        return { ok: false, error: e?.message || String(e) };
+    }
+});
+
+ipcMain.handle('db-get-health', () => {
+    try {
+        return { ok: true, ...localDb.getHealth() };
+    } catch (e) {
+        return { ok: false, status: 'error', error: e?.message || String(e) };
+    }
+});
+
+ipcMain.handle('db-open-folder', () => {
+    try {
+        shell.showItemInFolder(localDb.getPath());
+        return { ok: true };
+    } catch (e) {
+        return { ok: false, error: e?.message || String(e) };
+    }
+});
+
+ipcMain.handle('db-get-analytics-transactions', (_event, options = {}) => {
+    try {
+        return {
+            ok: true,
+            transactions: localDb.analytics.get(options)
+        };
+    } catch (e) {
+        return { ok: false, error: e?.message || String(e), transactions: [] };
+    }
+});
+
+ipcMain.handle('db-save-analytics-transactions', (_event, transactions = [], options = {}) => {
+    try {
+        const result = localDb.analytics.save(transactions, options);
+        return { ok: true, ...result };
+    } catch (e) {
+        return { ok: false, error: e?.message || String(e) };
+    }
+});
+
+ipcMain.handle('db-clear-analytics-transactions', () => {
+    try {
+        localDb.analytics.clear();
+        return { ok: true };
+    } catch (e) {
+        return { ok: false, error: e?.message || String(e) };
+    }
+});
+
+ipcMain.handle('db-get-target-price-rules', () => {
+    try {
+        return { ok: true, ...localDb.targetPriceRules.get() };
+    } catch (e) {
+        return { ok: false, error: e?.message || String(e), maxPrices: {}, maxPricesByKey: {} };
+    }
+});
+
+ipcMain.handle('db-save-target-price-rules', (_event, snapshot = {}) => {
+    try {
+        localDb.targetPriceRules.saveSnapshot(snapshot);
+        return { ok: true };
+    } catch (e) {
+        return { ok: false, error: e?.message || String(e) };
+    }
+});
+
+ipcMain.handle('db-get-target-presets', () => {
+    try {
+        return { ok: true, presets: localDb.targetPresets.get() };
+    } catch (e) {
+        return { ok: false, error: e?.message || String(e), presets: [] };
+    }
+});
+
+ipcMain.handle('db-save-target-preset', (_event, preset = {}) => {
+    try {
+        return { ok: true, preset: localDb.targetPresets.upsert(preset) };
+    } catch (e) {
+        return { ok: false, error: e?.message || String(e) };
+    }
+});
+
+ipcMain.handle('db-delete-target-preset', (_event, id) => {
+    try {
+        return { ok: true, ...localDb.targetPresets.delete(id) };
+    } catch (e) {
+        return { ok: false, error: e?.message || String(e), deleted: 0 };
+    }
+});
+
+ipcMain.handle('db-get-offer-price-rules', () => {
+    try {
+        return { ok: true, ...localDb.offerPriceRules.get() };
+    } catch (e) {
+        return {
+            ok: false,
+            error: e?.message || String(e),
+            minPrices: {},
+            maxPrices: {},
+            skipForParsing: {}
+        };
+    }
+});
+
+ipcMain.handle('db-save-offer-price-rules', (_event, rules = {}) => {
+    try {
+        localDb.offerPriceRules.save(rules);
+        return { ok: true };
+    } catch (e) {
+        return { ok: false, error: e?.message || String(e) };
+    }
 });
 
 ipcMain.handle('shell-open-external', async (event, url) => {
@@ -399,5 +519,9 @@ app.on('window-all-closed', () => {
     if (process.platform !== 'darwin') {
         app.quit();
     }
+});
+
+app.on('before-quit', () => {
+    localDb.close();
 });
 

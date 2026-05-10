@@ -477,13 +477,13 @@ function Analytics() {
                                     hour: '2-digit',
                                     minute: '2-digit'
                                 });
-                                const isSale = transaction.type === 'sale';
+                                const meta = getAnalyticsTransactionRowMeta(transaction);
                                 
                                 return (
                                     <div key={transaction.id} className="transaction-item">
                                         <div className="transaction-type">
-                                            <span className={`transaction-badge ${isSale ? 'sale' : 'purchase'}`}>
-                                                {isSale ? 'Продаж' : 'Покупка'}
+                                            <span className={`transaction-badge ${meta.badgeClass}`}>
+                                                {meta.label}
                                             </span>
                                         </div>
                                         <div className="transaction-details">
@@ -492,8 +492,8 @@ function Analytics() {
                                                 <span className="transaction-date">{formattedDate}</span>
                                             </div>
                                         </div>
-                                        <div className={`transaction-amount ${isSale ? 'positive' : 'negative'}`}>
-                                            {isSale ? '+' : '-'}${parseFloat(transaction.amount || 0).toFixed(2)}
+                                        <div className={`transaction-amount ${meta.amountClass}`}>
+                                            {meta.amountText}
                                         </div>
                                     </div>
                                 );
@@ -507,6 +507,57 @@ function Analytics() {
             </div>
         </div>
     );
+}
+
+function getAnalyticsTransactionRowMeta(transaction) {
+    const raw = Math.abs(parseFloat(transaction.amount || 0));
+    const formatted = raw.toFixed(2);
+
+    switch (transaction.type) {
+        case 'sale':
+            return {
+                badgeClass: 'sale',
+                label: 'Продаж',
+                amountClass: 'positive',
+                amountText: `+$${formatted}`
+            };
+        case 'cash_deposit':
+            return {
+                badgeClass: 'cash_deposit',
+                label: 'Поповнення',
+                amountClass: 'positive',
+                amountText: `+$${formatted}`
+            };
+        case 'cash_withdraw':
+            return {
+                badgeClass: 'cash_withdraw',
+                label: 'Вивід коштів',
+                amountClass: 'negative',
+                amountText: `-$${formatted}`
+            };
+        case 'withdraw':
+            return {
+                badgeClass: 'withdraw',
+                label: 'Вивід предмета',
+                amountClass: 'neutral',
+                amountText: `$${formatted}`
+            };
+        case 'deposit':
+            return {
+                badgeClass: 'deposit',
+                label: 'Депозит предмета',
+                amountClass: 'neutral',
+                amountText: `$${formatted}`
+            };
+        case 'purchase':
+        default:
+            return {
+                badgeClass: 'purchase',
+                label: 'Покупка',
+                amountClass: 'negative',
+                amountText: `-$${formatted}`
+            };
+    }
 }
 
 function getTransactionWord(count) {

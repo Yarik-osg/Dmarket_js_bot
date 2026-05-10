@@ -90,14 +90,18 @@ class ApiService {
             }]
         };
         
-        console.log('updateTarget request:', JSON.stringify(requestBody, null, 2));
-        console.log('updateTarget - title value:', title, 'type:', typeof title);
-        console.log('updateTarget - floatPartValue:', floatPartValue);
-        console.log('updateTarget - phase:', phase);
-        console.log('updateTarget - paintSeed:', paintSeed);
+        if (import.meta.env.DEV) {
+            console.log('updateTarget request:', JSON.stringify(requestBody, null, 2));
+            console.log('updateTarget - title value:', title, 'type:', typeof title);
+            console.log('updateTarget - floatPartValue:', floatPartValue);
+            console.log('updateTarget - phase:', phase);
+            console.log('updateTarget - paintSeed:', paintSeed);
+        }
         const response = await this.client.call('POST', path, requestBody);
         
-        console.log('updateTarget response:', JSON.stringify(response, null, 2));
+        if (import.meta.env.DEV) {
+            console.log('updateTarget response:', JSON.stringify(response, null, 2));
+        }
         
         // Check for failed targets even if status is 200 OK
         // failedTargets can be an array or might be nested
@@ -131,7 +135,9 @@ class ApiService {
         if (uniq.length === 0) return;
         const path = `/marketplace-api/v1/user-targets/delete`;
         const Targets = uniq.map((id) => ({ TargetID: id }));
-        console.log('deleteTargetsBatch', Targets.length);
+        if (import.meta.env.DEV) {
+            console.log('deleteTargetsBatch', Targets.length);
+        }
         return await this.client.call('POST', path, { Targets });
     }
 
@@ -145,7 +151,9 @@ class ApiService {
             force: true,
             targetIds: [targetId]
         };
-        console.log('activate target', targetId, requestBody);
+        if (import.meta.env.DEV) {
+            console.log('activate target', targetId, requestBody);
+        }
         return await this.client.call('POST', path, requestBody);
     }
 
@@ -157,12 +165,23 @@ class ApiService {
             force: true,
             targetIds: uniq
         };
-        console.log('deactivateTargets', requestBody);
+        if (import.meta.env.DEV) {
+            console.log('deactivateTargets', requestBody);
+        }
         return await this.client.call('POST', path, requestBody);
     }
 
     async deactivateTarget(targetId) {
         return await this.deactivateTargets([targetId]);
+    }
+
+    /**
+     * Часові обмеження на оновлення таргета (часті зміни ціни / кількості).
+     * POST /target/v1/time-limits
+     */
+    async getTargetTimeLimits(payload) {
+        const path = '/target/v1/time-limits';
+        return await this.client.call('POST', path, payload);
     }
 
     // Exchange API - Market Items
@@ -205,7 +224,9 @@ class ApiService {
 
     async getUserItems(params = {}) {
         const path = '/exchange/v1/user/items';
-        console.log('getUserItems', params);
+        if (import.meta.env.DEV) {
+            console.log('getUserItems', params);
+        }
         return await this.client.call('GET', path, params);
     }
 
@@ -321,10 +342,38 @@ class ApiService {
             requests: [{ offerId: String(offerId), priceCents }]
         };
 
-        console.log('inside update offer', requestBody);
         const response = await this.client.call('POST', path, requestBody);
 
-        console.log('updateOffer response:', JSON.stringify(response, null, 2));
+        if (import.meta.env.DEV) {
+            console.log('updateOffer response:', JSON.stringify(response, null, 2));
+        }
+
+        // v2 batchUpdate returns HTTP 200 with per-offer failures in `failed`.
+        const failedOffers = response?.failed || response?.failedOffers;
+        if (Array.isArray(failedOffers) && failedOffers.length > 0) {
+            const failedOffer =
+                failedOffers.find((item) => String(item.offerId) === String(offerId)) ||
+                failedOffers[0];
+            const errorCode = failedOffer.code || failedOffer.errorCode || 'UnknownError';
+            const errorMessage = failedOffer.message || errorCode || 'Unknown error';
+            const error = new Error(errorMessage);
+            error.errorCode = errorCode;
+            error.result = failedOffer;
+            error.response = response;
+            throw error;
+        }
+
+        if (
+            response &&
+            Array.isArray(response.offers) &&
+            response.offers.length === 0 &&
+            (!Array.isArray(failedOffers) || failedOffers.length === 0)
+        ) {
+            const error = new Error('DMarket did not update the offer and returned no failure reason');
+            error.errorCode = 'EmptyOfferUpdateResult';
+            error.response = response;
+            throw error;
+        }
 
         // Legacy v1-style body: { Result: [...] }
         if (response && response.Result && Array.isArray(response.Result)) {
@@ -387,7 +436,9 @@ class ApiService {
         }
         if (requests.length === 0) return;
         const requestBody = { requests };
-        console.log('deleteOffersBatch:', requestBody.requests.length);
+        if (import.meta.env.DEV) {
+            console.log('deleteOffersBatch:', requestBody.requests.length);
+        }
         return await this.client.call('POST', path, requestBody);
     }
 

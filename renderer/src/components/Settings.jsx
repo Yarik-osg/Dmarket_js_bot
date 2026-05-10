@@ -7,6 +7,7 @@ import { showConfirmModal } from '../utils/modal.js';
 import { getReleaseNotesForVersion } from '../data/releaseNotes.js';
 import { GITHUB_RELEASES_INDEX } from '../constants/githubRelease.js';
 import { FEEDBACK_APP_MAX_BODY_CHARS, FEEDBACK_MAX_SUBJECT_CHARS } from '../constants/feedbackContact.js';
+import { getDbHealth, openDbFolder } from '../services/localDb.js';
 import { submitWeb3Feedback } from '../services/web3formsFeedback.js';
 import '../styles/Settings.css';
 
@@ -27,6 +28,9 @@ function Settings({ updater }) {
     const [feedbackWeb3Configured, setFeedbackWeb3Configured] = useState(null);
     const [feedbackSending, setFeedbackSending] = useState(false);
     const [feedbackBanner, setFeedbackBanner] = useState(null);
+    const [dbHealth, setDbHealth] = useState(null);
+    const [dbHealthLoading, setDbHealthLoading] = useState(false);
+    const [dbHealthError, setDbHealthError] = useState('');
 
     const updaterReleaseNotes = updater ? getReleaseNotesForVersion(updater.appVersion) : [];
 
@@ -78,6 +82,27 @@ function Settings({ updater }) {
         };
         
         loadCurrentKeys();
+    }, []);
+
+    const loadDbHealth = async () => {
+        setDbHealthLoading(true);
+        setDbHealthError('');
+        try {
+            const result = await getDbHealth();
+            if (!result?.ok) {
+                throw new Error(result?.error || 'SQLite status unavailable');
+            }
+            setDbHealth(result);
+        } catch (err) {
+            setDbHealth(null);
+            setDbHealthError(err?.message || 'Не вдалося отримати статус SQLite');
+        } finally {
+            setDbHealthLoading(false);
+        }
+    };
+
+    useEffect(() => {
+        loadDbHealth();
     }, []);
 
     const maskKey = (key) => {
@@ -259,6 +284,21 @@ function Settings({ updater }) {
 
     const feedbackBodyLen = feedbackMessage.length;
     const feedbackSubjectLen = feedbackSubject.length;
+    const dbTables = dbHealth?.tables || {};
+    const dbFileSizeMb = dbHealth?.fileSizeBytes
+        ? (dbHealth.fileSizeBytes / 1024 / 1024).toFixed(2)
+        : '0.00';
+
+    const handleOpenDbFolder = async () => {
+        try {
+            const result = await openDbFolder();
+            if (!result?.ok) {
+                throw new Error(result?.error || 'Не вдалося відкрити папку SQLite');
+            }
+        } catch (err) {
+            setDbHealthError(err?.message || 'Не вдалося відкрити папку SQLite');
+        }
+    };
 
     return (
         <div className="settings-container">
@@ -363,6 +403,85 @@ function Settings({ updater }) {
                             </button>
                         </div>
                     </form>
+                </div>
+
+                <div className="settings-section">
+                    <h2 className="settings-section-title">SQLite база</h2>
+                    <p className="settings-description">
+                        Локальна база користувача для аналітики, max price таргетів і min/max/skip правил оферів.
+                    </p>
+
+                    {dbHealthError ? <div className="settings-error">{dbHealthError}</div> : null}
+
+                    <div className="settings-db-status">
+                        <div>
+                            <span className="settings-db-status-label">Статус</span>
+                            <strong className={dbHealth?.ok ? 'settings-db-ok' : 'settings-db-muted'}>
+                                {dbHealthLoading ? 'Перевірка...' : dbHealth?.ok ? 'OK' : 'Невідомо'}
+                            </strong>
+                        </div>
+                        <div>
+                            <span className="settings-db-status-label">Schema version</span>
+                            <strong>{dbHealth?.schemaVersion ?? '—'}</strong>
+                        </div>
+                        <div>
+                            <span className="settings-db-status-label">SQLite</span>
+                            <strong>{dbHealth?.sqliteVersion || '—'}</strong>
+                        </div>
+                        <div>
+                            <span className="settings-db-status-label">Розмір</span>
+                            <strong>{dbFileSizeMb} MB</strong>
+                        </div>
+                    </div>
+
+                    <div className="settings-db-path">
+                        <span className="settings-db-status-label">Файл</span>
+                        <code>{dbHealth?.path || '—'}</code>
+                    </div>
+
+                    <div className="settings-db-grid">
+                        <div>
+                            <span>Analytics transactions</span>
+                            <strong>{dbTables.analyticsTransactions ?? 0}</strong>
+                        </div>
+                        <div>
+                            <span>Target price rules</span>
+                            <strong>{dbTables.targetPriceRules ?? 0}</strong>
+                        </div>
+                        <div>
+                            <span>Target fallback keys</span>
+                            <strong>{dbTables.targetPriceRuleKeys ?? 0}</strong>
+                        </div>
+                        <div>
+                            <span>Offer price rules</span>
+                            <strong>{dbTables.offerPriceRules ?? 0}</strong>
+                        </div>
+                    </div>
+
+                    <p className="settings-description settings-db-meta">
+                        Journal: <strong>{dbHealth?.journalMode || '—'}</strong> · Foreign keys:{' '}
+                        <strong>{dbHealth?.foreignKeys ? 'ON' : 'OFF'}</strong> · Busy timeout:{' '}
+                        <strong>{dbHealth?.busyTimeoutMs ?? '—'} ms</strong>
+                    </p>
+
+                    <div className="settings-actions">
+                        <button
+                            type="button"
+                            className="btn btn-primary settings-save-btn"
+                            onClick={loadDbHealth}
+                            disabled={dbHealthLoading}
+                        >
+                            {dbHealthLoading ? 'Оновлення...' : 'Оновити статус'}
+                        </button>
+                        <button
+                            type="button"
+                            className="btn btn-secondary"
+                            onClick={handleOpenDbFolder}
+                            disabled={!dbHealth?.path}
+                        >
+                            Відкрити папку БД
+                        </button>
+                    </div>
                 </div>
 
                 <div className="settings-section">

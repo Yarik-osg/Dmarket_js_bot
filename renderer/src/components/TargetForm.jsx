@@ -3,6 +3,8 @@ import { useTargets } from '../hooks/useTargets.js';
 import { useLocale } from '../contexts/LocaleContext.jsx';
 import { useAuth } from '../contexts/AuthContext.jsx';
 import { ApiService } from '../services/apiService.js';
+import { buildTargetPresetFromForm, getTargetImageUrl } from '../utils/targetPresets.js';
+import { getCreatedTargetIdFromResponse } from '../utils/targetMaxPricesStorage.js';
 import '../styles/TargetForm.css';
 
 // Format price from cents (string) to dollars (string with decimal point)
@@ -28,22 +30,23 @@ const getWearTypeFromTitle = (title) => {
     return null;
 };
 
-function TargetForm({ target, onClose, onSave, onSaveWithMaxPrice }) {
+function TargetForm({ target, initialData = null, onClose, onSave, onSaveWithMaxPrice, onSavePreset }) {
     const { t } = useLocale();
     const { client } = useAuth();
     const { createTarget, updateTarget } = useTargets();
     const apiService = client ? new ApiService(client) : null;
 
     const [formData, setFormData] = useState({
-        title: target?.title || '',
-        price: formatPriceFromCents('3'),
+        title: target?.title || initialData?.title || '',
+        price: initialData?.price ?? formatPriceFromCents('3'),
         minPrice: target?.minPrice || '0.03',
-        maxPrice: target?.maxPrice || '1',
-        quantity: target?.amount || 1,
-        floatPartValue: target?.extra?.floatPartValue || '',
-        phase: '',
+        maxPrice: target?.maxPrice ?? initialData?.maxPrice ?? '1',
+        quantity: target?.amount ?? initialData?.quantity ?? 1,
+        floatPartValue: target?.extra?.floatPartValue ?? initialData?.floatPartValue ?? '',
+        phase: initialData?.phase ?? '',
         phaseAny: true,
-        paintSeed: target?.attributes?.paintSeed || '0'
+        paintSeed: target?.attributes?.paintSeed ?? initialData?.paintSeed ?? '0',
+        imageUrl: getTargetImageUrl(target) || initialData?.imageUrl || ''
     });
 
     // All float part value options according to DMarket API
@@ -147,6 +150,7 @@ function TargetForm({ target, onClose, onSave, onSaveWithMaxPrice }) {
         setFormData(prev => ({
             ...prev,
             title: item.title,
+            imageUrl: getTargetImageUrl(item) || '',
             floatPartValue: newFloatValue
         }));
         setSearchResults([]);
@@ -203,18 +207,27 @@ function TargetForm({ target, onClose, onSave, onSaveWithMaxPrice }) {
                 await updateTarget(target.targetId, targetData);
                 onSave();
             } else {
-                const response = await createTarget(targetData);
+                const createResponse = await createTarget(targetData, { reload: false });
+                const createdTargetId = getCreatedTargetIdFromResponse(createResponse);
+                let pendingMaxPrice = null;
                 // If maxPrice was provided and onSaveWithMaxPrice callback exists, save it
                 if (formData.maxPrice && onSaveWithMaxPrice) {
-                    onSaveWithMaxPrice(
+                    pendingMaxPrice = await onSaveWithMaxPrice(
                         formData.title, 
                         formData.floatPartValue || '', 
                         formData.maxPrice,
                         formData.phase || null,
-                        formData.paintSeed && formData.paintSeed !== '0' ? formData.paintSeed : null
+                        formData.paintSeed && formData.paintSeed !== '0' ? formData.paintSeed : null,
+                        createdTargetId
                     );
                 }
-                onSave();
+                if (onSavePreset) {
+                    const preset = buildTargetPresetFromForm(formData);
+                    if (preset) {
+                        await onSavePreset(preset);
+                    }
+                }
+                onSave({ pendingMaxPrice });
             }
         } catch (err) {
             setError(err.message || t('target.saveError'));
@@ -266,7 +279,7 @@ function TargetForm({ target, onClose, onSave, onSaveWithMaxPrice }) {
                     <label>{t('target.price')}</label>
                     <input
                         type="number"
-                        value="0.03"
+                        value={formData.price}
                         onChange={(e) => setFormData(prev => ({ ...prev, price: e.target.value }))}
                         className="form-input"
                         required

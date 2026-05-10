@@ -304,6 +304,71 @@ textarea.settings-input.settings-feedback-textarea {
     font-weight: 600;
 }
 
+.settings-db-status {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 12px;
+    margin-bottom: 16px;
+}
+
+.settings-db-status > div,
+.settings-db-grid > div,
+.settings-db-path {
+    padding: 14px 16px;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: var(--radius-md);
+    background: rgba(0, 0, 0, 0.18);
+}
+
+.settings-db-status-label,
+.settings-db-grid span {
+    display: block;
+    margin-bottom: 6px;
+    color: var(--text-secondary);
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+.settings-db-ok {
+    color: var(--success-color);
+}
+
+.settings-db-muted {
+    color: var(--text-secondary);
+}
+
+.settings-db-path {
+    margin-bottom: 16px;
+}
+
+.settings-db-path code {
+    display: block;
+    color: var(--text-primary);
+    font-size: 13px;
+    line-height: 1.5;
+    word-break: break-all;
+    white-space: pre-wrap;
+}
+
+.settings-db-grid {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 12px;
+    margin-bottom: 16px;
+}
+
+.settings-db-grid strong,
+.settings-db-status strong {
+    color: var(--text-primary);
+    font-size: 18px;
+}
+
+.settings-db-meta {
+    margin-bottom: 0;
+}
+
 .settings-actions {
     display: flex;
     gap: 12px;
@@ -407,4 +472,11 @@ textarea.settings-input.settings-feedback-textarea {
     background: var(--accent-color);
     color: white;
     box-shadow: var(--shadow);
+}
+
+@media (max-width: 760px) {
+    .settings-db-status,
+    .settings-db-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
 }

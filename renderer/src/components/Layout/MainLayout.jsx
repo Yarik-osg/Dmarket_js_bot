@@ -26,7 +26,7 @@ import {
 
 function MainLayout() {
     const { isAuthenticated, client } = useAuth();
-    const { addTransaction, loadTransactionsFromAPI } = useAnalytics();
+    const { addTransaction, loadTransactionsFromAPI, transactions, isHydrated: isAnalyticsHydrated } = useAnalytics();
     const { showNotification } = useNotifications();
     const [activeTab, setActiveTab] = useState('orders');
     const [isTargetsParsingEnabled, setIsTargetsParsingEnabled] = useState(false);
@@ -51,12 +51,11 @@ function MainLayout() {
 
     // Завантажуємо існуючі транзакції при першому запуску
     useEffect(() => {
-        if (apiService && isAuthenticated && loadTransactionsFromAPI && !hasLoadedInitialTransactions.current) {
-            const saved = localStorage.getItem('analytics_transactions');
-            const hasExistingTransactions = saved && JSON.parse(saved).length > 0;
+        if (apiService && isAuthenticated && loadTransactionsFromAPI && isAnalyticsHydrated && !hasLoadedInitialTransactions.current) {
+            const transactionsCount = transactions?.length || 0;
             
             // Завантажуємо тільки якщо немає збережених транзакцій або їх мало
-            if (!hasExistingTransactions || JSON.parse(saved).length < 10) {
+            if (transactionsCount < 10) {
                 console.log('Loading initial transactions from API...');
                 loadTransactionsFromAPI(apiService, 100).then(() => {
                     hasLoadedInitialTransactions.current = true;
@@ -65,7 +64,7 @@ function MainLayout() {
                 hasLoadedInitialTransactions.current = true;
             }
         }
-    }, [apiService, isAuthenticated, loadTransactionsFromAPI]);
+    }, [apiService, isAuthenticated, loadTransactionsFromAPI, transactions, isAnalyticsHydrated]);
 
     // Initialize transaction monitor
     useEffect(() => {

@@ -12,8 +12,12 @@ import '../styles/TargetsList.css';
 import { formatUsdFromApiCents } from '../utils/formatUsd.js';
 import { getFloatRange } from '../utils/csFloatRanges.js';
 import {
+    addPendingMaxPriceToSnapshot,
     buildMaxPricesSnapshot,
+    getTargetPriceKey,
+    loadMaxPricesSnapshot,
     mergeMaxPricesAfterLoad,
+    mergePendingMaxPriceAfterLoad,
     persistMaxPricesSnapshot,
     pruneMaxPricesForTargets,
     syncMaxPricesStorage
@@ -21,9 +25,17 @@ import {
 import { usePersistedTargetMaxPrices } from '../hooks/usePersistedTargetMaxPrices.js';
 import { useMarketBuyOrderPrices } from '../hooks/useMarketBuyOrderPrices.js';
 import { useTargetPriceAutomation } from '../hooks/useTargetPriceAutomation.js';
+import { useTargetPresets } from '../hooks/useTargetPresets.js';
+import { useTargetTimeLimits } from '../hooks/useTargetTimeLimits.js';
 import { TargetsTable } from './targets/TargetsTable.jsx';
 import { BatchConfirmDetails } from './batch/BatchConfirmDetails.jsx';
 import { PriceResetPanel } from './targets/PriceResetPanel.jsx';
+import { SkinThumbWithHoverPreview } from './SkinThumbWithHoverPreview.jsx';
+import {
+    getTargetImageUrl,
+    getTargetPresetMatchingImage,
+    presetToTargetFormInitialData
+} from '../utils/targetPresets.js';
 
 function normalizeTargetUpdateErrorCode(err) {
     if (!err) return null;
@@ -38,6 +50,60 @@ function isTargetUpdatedRecentlyError(err) {
     const code = normalizeTargetUpdateErrorCode(err);
     if (!code) return false;
     return code.replace(/_/g, '').toLowerCase() === 'targetupdatedrecently';
+}
+
+function TargetTemplateCard({ preset, targets, onCreate, onDelete }) {
+    const [imgFailed, setImgFailed] = useState(false);
+    const imageUrl = getTargetImageUrl(preset) || getTargetPresetMatchingImage(preset, targets);
+    const showImage = Boolean(imageUrl) && !imgFailed;
+
+    return (
+        <article className="target-preset-card">
+            <div className="target-preset-main">
+                {showImage ? (
+                    <SkinThumbWithHoverPreview
+                        src={imageUrl}
+                        alt=""
+                        thumbClassName="target-preset-thumb"
+                        loading="lazy"
+                        onError={() => setImgFailed(true)}
+                    />
+                ) : (
+                    <div className="target-preset-thumb target-preset-thumb--empty" aria-hidden />
+                )}
+                <div className="target-preset-heading">
+                    <strong className="target-preset-name">{preset.title}</strong>
+                    <span className="target-preset-created">
+                        Створено разів: {preset.timesCreated || 0}
+                    </span>
+                </div>
+            </div>
+            <div className="target-preset-meta">
+                <span><small>Price</small>${preset.price ?? '-'}</span>
+                <span><small>Max price</small>${preset.maxPrice ?? '-'}</span>
+                <span><small>Quantity</small>{preset.amount || 1}</span>
+                <span><small>Float</small>{preset.floatPartValue || '-'}</span>
+                <span><small>Phase</small>{preset.phase || '-'}</span>
+                <span><small>Paint seed</small>{preset.paintSeed || '-'}</span>
+            </div>
+            <div className="target-preset-actions">
+                <button
+                    type="button"
+                    className="btn btn-primary"
+                    onClick={() => onCreate(preset)}
+                >
+                    Створити знову
+                </button>
+                <button
+                    type="button"
+                    className="btn btn-secondary"
+                    onClick={() => onDelete(preset)}
+                >
+                    Видалити
+                </button>
+            </div>
+        </article>
+    );
 }
 
 function TargetsList({ isAutoUpdatingEnabled = false }) {
@@ -62,8 +128,10 @@ function TargetsList({ isAutoUpdatingEnabled = false }) {
             /* ignore */
         }
     }, [onlyActive]);
+    const [activeTargetsView, setActiveTargetsView] = useState('targets');
     const [showForm, setShowForm] = useState(false);
     const [editingTarget, setEditingTarget] = useState(null);
+    const [targetFormInitialData, setTargetFormInitialData] = useState(null);
     const [pendingAmounts, setPendingAmounts] = useState({});
 
     const targetsRef = useRef(targets);
@@ -78,20 +146,31 @@ function TargetsList({ isAutoUpdatingEnabled = false }) {
         pendingMaxPrices,
         setPendingMaxPrices,
         handleSaveWithMaxPrice
-    } = usePersistedTargetMaxPrices(targets, { addLog });
+    } = usePersistedTargetMaxPrices(targets);
+
+    const {
+        presets: targetPresets,
+        loadingPresets,
+        presetsError,
+        savePreset,
+        deletePreset
+    } = useTargetPresets();
 
     const apiService = useMemo(() => {
         return client ? new ApiService(client) : null;
     }, [client]);
 
     const loadTargetsWithMaxPrices = useCallback(
-        async (items = []) => {
+        async (items = [], { pendingMaxPrice = null } = {}) => {
             try {
                 const currentMaxPrices = maxPricesRef.current || maxPrices;
                 const currentTargets = targetsRef.current || targets;
-                if (Object.keys(currentMaxPrices).length > 0) {
-                    const snapshot = buildMaxPricesSnapshot(currentTargets, currentMaxPrices);
-                    persistMaxPricesSnapshot(snapshot);
+                if (Object.keys(currentMaxPrices).length > 0 || pendingMaxPrice) {
+                    const snapshot = addPendingMaxPriceToSnapshot(
+                        buildMaxPricesSnapshot(currentTargets, currentMaxPrices),
+                        pendingMaxPrice
+                    );
+                    await persistMaxPricesSnapshot(snapshot);
                     if (import.meta.env.DEV) {
                         console.log('Saved maxPrices before loadTargets:', snapshot.maxPrices);
                         console.log('Saved maxPricesByKey before loadTargets:', snapshot.maxPricesByKey);
@@ -105,11 +184,10 @@ function TargetsList({ isAutoUpdatingEnabled = false }) {
             if (fresh !== undefined) {
                 try {
                     let merged;
-                    const saved = localStorage.getItem('targetsMaxPrices');
-                    if (saved) {
-                        const savedByKey = localStorage.getItem('targetsMaxPricesByKey');
-                        const savedMaxPrices = JSON.parse(saved);
-                        const savedMaxPricesByKey = savedByKey ? JSON.parse(savedByKey) : {};
+                    const snapshot = await loadMaxPricesSnapshot();
+                    if (Object.keys(snapshot.maxPrices).length > 0 || Object.keys(snapshot.maxPricesByKey).length > 0) {
+                        const savedMaxPrices = snapshot.maxPrices;
+                        const savedMaxPricesByKey = snapshot.maxPricesByKey;
                         merged = mergeMaxPricesAfterLoad(savedMaxPrices, savedMaxPricesByKey, fresh);
                         if (import.meta.env.DEV) {
                             console.log('Restoring maxPrices after loadTargets (merged):', merged);
@@ -117,11 +195,18 @@ function TargetsList({ isAutoUpdatingEnabled = false }) {
                     } else {
                         merged = { ...(maxPricesRef.current || {}) };
                         if (import.meta.env.DEV) {
-                            console.warn('No saved targetsMaxPrices in localStorage; pruning current ref');
+                            console.warn('No saved target max prices snapshot (SQLite/legacy); pruning current ref');
                         }
                     }
-                    const pruned = pruneMaxPricesForTargets(merged, fresh);
-                    syncMaxPricesStorage(fresh, pruned);
+                    merged = mergePendingMaxPriceAfterLoad(merged, fresh, pendingMaxPrice);
+                    const extraValidIds = pendingMaxPrice?.targetId ? [pendingMaxPrice.targetId] : [];
+                    const pruned = pruneMaxPricesForTargets(merged, fresh, extraValidIds);
+                    await persistMaxPricesSnapshot(
+                        addPendingMaxPriceToSnapshot(
+                            buildMaxPricesSnapshot(fresh, pruned),
+                            pendingMaxPrice
+                        )
+                    );
                     setMaxPrices(pruned);
                     maxPricesRef.current = pruned;
                     if (import.meta.env.DEV) {
@@ -151,11 +236,13 @@ function TargetsList({ isAutoUpdatingEnabled = false }) {
         if (!same) {
             setMaxPrices(pruned);
             maxPricesRef.current = pruned;
-            syncMaxPricesStorage(targets, pruned);
+            syncMaxPricesStorage(targets, pruned).catch((err) => {
+                console.error('Error syncing pruned maxPrices to SQLite:', err);
+            });
         }
 
         const validIds = new Set(
-            targets.map((x) => x.itemId).filter((id) => id != null && id !== '').map(String)
+            targets.map(getTargetPriceKey).filter((id) => id != null && id !== '').map(String)
         );
         setPendingMaxPrices((prev) => {
             const next = {};
@@ -685,34 +772,26 @@ function TargetsList({ isAutoUpdatingEnabled = false }) {
     const handleApplyMaxPrice = async (itemId) => {
         const pendingPrice = pendingMaxPrices[itemId];
         if (!pendingPrice || !itemId) {
-            if (import.meta.env.DEV) {
-                console.warn('handleApplyMaxPrice: missing pendingPrice or itemId', { pendingPrice, itemId });
-            }
+            console.warn('handleApplyMaxPrice: missing pendingPrice or itemId', { pendingPrice, itemId });
             return;
         }
 
         try {
             setUpdating(true);
-            if (import.meta.env.DEV) {
-                console.log('Applying maxPrice:', { itemId, pendingPrice, currentMaxPrices: maxPrices });
-            }
-            setMaxPrices((prev) => {
-                const updated = {
-                    ...prev,
-                    [itemId]: pendingPrice
-                };
-                if (import.meta.env.DEV) {
-                    console.log('Updated maxPrices:', updated);
-                }
-                return updated;
-            });
+            const updatedMaxPrices = {
+                ...(maxPricesRef.current || maxPrices),
+                [itemId]: pendingPrice
+            };
+            setMaxPrices(updatedMaxPrices);
+            maxPricesRef.current = updatedMaxPrices;
+            await persistMaxPricesSnapshot(buildMaxPricesSnapshot(targetsRef.current || targets, updatedMaxPrices));
             setPendingMaxPrices((prev) => {
                 const newPending = { ...prev };
                 delete newPending[itemId];
                 return newPending;
             });
             await loadTargetsWithMaxPrices();
-            const target = targets.find((t) => t.itemId === itemId);
+            const target = targets.find((t) => getTargetPriceKey(t) === itemId);
             const title = target?.itemTitle || target?.title || target?.extra?.name || 'Невідомий таргет';
             addLog({
                 type: 'success',
@@ -722,7 +801,7 @@ function TargetsList({ isAutoUpdatingEnabled = false }) {
             });
         } catch (err) {
             console.error('Error applying maxPrice:', err);
-            const target = targets.find((t) => t.itemId === itemId);
+            const target = targets.find((t) => getTargetPriceKey(t) === itemId);
             const title = target?.itemTitle || target?.title || target?.extra?.name || 'Невідомий таргет';
             addLog({
                 type: 'error',
@@ -741,7 +820,49 @@ function TargetsList({ isAutoUpdatingEnabled = false }) {
 
     const handleAdd = () => {
         setEditingTarget(null);
+        setTargetFormInitialData(null);
+        setActiveTargetsView('targets');
         setShowForm(true);
+    };
+
+    const handleCreateFromPreset = (preset) => {
+        setEditingTarget(null);
+        setTargetFormInitialData(presetToTargetFormInitialData(preset));
+        setShowForm(true);
+    };
+
+    const handleDeletePreset = async (preset) => {
+        showConfirmModal({
+            title: 'Видалити шаблон?',
+            message: `Шаблон "${preset.title}" буде видалено з локальної бази.`,
+            onConfirm: async () => {
+                try {
+                    await deletePreset(preset.id);
+                } catch (err) {
+                    showAlertModal({
+                        title: 'Помилка',
+                        message: 'Не вдалося видалити шаблон: ' + (err.message || String(err))
+                    });
+                }
+            },
+            confirmText: 'Видалити',
+            cancelText: t('common.cancel'),
+            confirmVariant: 'danger'
+        });
+    };
+
+    const handleSaveTargetPreset = async (preset) => {
+        try {
+            await savePreset(preset);
+        } catch (err) {
+            console.error('Error saving target preset:', err);
+            addLog({
+                type: 'warning',
+                category: 'target',
+                message: `Target створено, але шаблон не збережено: ${preset.title}`,
+                details: { title: preset.title, error: err.message }
+            });
+        }
     };
 
     const searchFilteredTargets = useMemo(() => {
@@ -762,22 +883,29 @@ function TargetsList({ isAutoUpdatingEnabled = false }) {
         });
     }, [searchFilteredTargets, onlyActive]);
 
+    const { cooldownById, cooldownTick } = useTargetTimeLimits(displayTargets, apiService);
+
     const loadingTable = loading && displayTargets.length > 0;
 
     if (showForm) {
         return (
             <TargetForm
                 target={editingTarget}
+                initialData={targetFormInitialData}
                 onClose={() => {
                     setShowForm(false);
                     setEditingTarget(null);
+                    setTargetFormInitialData(null);
                 }}
-                onSave={() => {
+                onSave={({ pendingMaxPrice } = {}) => {
                     setShowForm(false);
                     setEditingTarget(null);
-                    loadTargetsWithMaxPrices();
+                    setTargetFormInitialData(null);
+                    setActiveTargetsView('targets');
+                    loadTargetsWithMaxPrices([], { pendingMaxPrice });
                 }}
                 onSaveWithMaxPrice={handleSaveWithMaxPrice}
+                onSavePreset={handleSaveTargetPreset}
             />
         );
     }
@@ -787,27 +915,31 @@ function TargetsList({ isAutoUpdatingEnabled = false }) {
             <div className="targets-header">
                 <h1 className="targets-title">{t('targets.title')}</h1>
                 <div className="targets-actions">
-                    <div className="targets-search-wrap">
-                        <RiSearchLine className="targets-search-icon" aria-hidden />
-                        <input
-                            type="search"
-                            className="targets-search"
-                            placeholder={t('targets.search')}
-                            value={searchQuery}
-                            onChange={(e) => setSearchQuery(e.target.value)}
-                            aria-label={t('targets.search')}
-                        />
-                    </div>
-                    <label className="targets-only-active">
-                        <input
-                            type="checkbox"
-                            className="targets-only-active-input"
-                            checked={onlyActive}
-                            onChange={(e) => setOnlyActive(e.currentTarget.checked)}
-                        />
-                        <span className="targets-only-active-face" aria-hidden />
-                        <span className="targets-only-active-text">{t('targets.onlyActive')}</span>
-                    </label>
+                    {activeTargetsView === 'targets' && (
+                        <>
+                            <div className="targets-search-wrap">
+                                <RiSearchLine className="targets-search-icon" aria-hidden />
+                                <input
+                                    type="search"
+                                    className="targets-search"
+                                    placeholder={t('targets.search')}
+                                    value={searchQuery}
+                                    onChange={(e) => setSearchQuery(e.target.value)}
+                                    aria-label={t('targets.search')}
+                                />
+                            </div>
+                            <label className="targets-only-active">
+                                <input
+                                    type="checkbox"
+                                    className="targets-only-active-input"
+                                    checked={onlyActive}
+                                    onChange={(e) => setOnlyActive(e.currentTarget.checked)}
+                                />
+                                <span className="targets-only-active-face" aria-hidden />
+                                <span className="targets-only-active-text">{t('targets.onlyActive')}</span>
+                            </label>
+                        </>
+                    )}
                     <button type="button" className="btn btn-primary" onClick={handleAdd}>
                         <RiAddLine size={18} />
                         {t('targets.add')}
@@ -824,68 +956,127 @@ function TargetsList({ isAutoUpdatingEnabled = false }) {
                 </div>
             </div>
 
-            <PriceResetPanel
-                timeUntilReset={timeUntilReset}
-                resetStats={resetStats}
-                onManualReset={handleManualReset}
-                disabled={updating || loading}
-                bulkProgress={bulkProgress}
-            />
+            <div className="targets-view-tabs" role="tablist" aria-label="Targets view">
+                <button
+                    type="button"
+                    role="tab"
+                    aria-selected={activeTargetsView === 'targets'}
+                    className={`targets-view-tab ${activeTargetsView === 'targets' ? 'targets-view-tab--active' : ''}`}
+                    onClick={() => setActiveTargetsView('targets')}
+                >
+                    Активні таргети
+                    <span>{targets.length}</span>
+                </button>
+                <button
+                    type="button"
+                    role="tab"
+                    aria-selected={activeTargetsView === 'presets'}
+                    className={`targets-view-tab ${activeTargetsView === 'presets' ? 'targets-view-tab--active' : ''}`}
+                    onClick={() => setActiveTargetsView('presets')}
+                >
+                    Шаблони
+                    <span>{targetPresets.length}</span>
+                </button>
+            </div>
 
-            {loading && <div className="loading">{t('targets.loading')}</div>}
-            {error && (
-                <div className="error targets-page-error" role="alert">
-                    <div className="targets-page-error__title">{t('targets.error')}</div>
-                    <p className="targets-page-error__message">{error}</p>
-                    <p className="targets-page-error__hint">{t('targets.errorHint')}</p>
-                </div>
-            )}
-            {authError && (
-                <div className="error" style={{ marginTop: '10px' }}>
-                    ⚠️ Не вдалося завантажити ціни buy orders: потрібна автентифікація API. Перевірте API ключі
-                    та права доступу.
-                </div>
-            )}
-            {loadingMarketPrices && (
-                <div className="loading targets-market-prices-hint">
-                    Завантаження ринкових цін...
-                </div>
-            )}
+            {activeTargetsView === 'targets' ? (
+                <>
+                    <PriceResetPanel
+                        timeUntilReset={timeUntilReset}
+                        resetStats={resetStats}
+                        onManualReset={handleManualReset}
+                        disabled={updating || loading}
+                        bulkProgress={bulkProgress}
+                    />
 
-            <TargetsTable
-                t={t}
-                filteredTargets={displayTargets}
-                targetsLength={targets.length}
-                searchMatchCount={searchFilteredTargets.length}
-                onlyActiveFilter={onlyActive}
-                onClearActiveFilter={() => setOnlyActive(false)}
-                searchQuery={debouncedSearch.trim()}
-                onClearSearch={() => setSearchQuery('')}
-                marketPrices={marketPrices}
-                loadingMarketPrices={loadingMarketPrices}
-                loadingTable={loadingTable}
-                maxPrices={maxPrices}
-                pendingMaxPrices={pendingMaxPrices}
-                pendingAmounts={pendingAmounts}
-                onMaxPricePendingChange={(itemId, val) =>
-                    setPendingMaxPrices((prev) => ({ ...prev, [itemId]: val }))
-                }
-                onApplyMaxPrice={handleApplyMaxPrice}
-                onQuantityPendingChange={(targetId, val) =>
-                    setPendingAmounts((prev) => ({ ...prev, [targetId]: val }))
-                }
-                onQuantityBlurDiscard={handleQuantityBlurDiscard}
-                onQuantityApply={handleQuantityApply}
-                updating={updating}
-                onDeactivate={handleDeactivate}
-                onActivate={handleActivate}
-                onDelete={handleDelete}
-                getFloatRange={getFloatRange}
-                unknownItemLabel={t('target.unknownItem')}
-                marketLegendText={t('targets.marketLegend')}
-                onBatchDeleteTargets={handleBatchDeleteTargets}
-                onBatchDeactivateTargets={handleBatchDeactivateTargets}
-            />
+                    {loading && <div className="loading">{t('targets.loading')}</div>}
+                    {error && (
+                        <div className="error targets-page-error" role="alert">
+                            <div className="targets-page-error__title">{t('targets.error')}</div>
+                            <p className="targets-page-error__message">{error}</p>
+                            <p className="targets-page-error__hint">{t('targets.errorHint')}</p>
+                        </div>
+                    )}
+                    {authError && (
+                        <div className="error" style={{ marginTop: '10px' }}>
+                            ⚠️ Не вдалося завантажити ціни buy orders: потрібна автентифікація API. Перевірте API ключі
+                            та права доступу.
+                        </div>
+                    )}
+                    {loadingMarketPrices && (
+                        <div className="loading targets-market-prices-hint">
+                            Завантаження ринкових цін...
+                        </div>
+                    )}
+
+                    <TargetsTable
+                        t={t}
+                        filteredTargets={displayTargets}
+                        targetsLength={targets.length}
+                        searchMatchCount={searchFilteredTargets.length}
+                        onlyActiveFilter={onlyActive}
+                        onClearActiveFilter={() => setOnlyActive(false)}
+                        searchQuery={debouncedSearch.trim()}
+                        onClearSearch={() => setSearchQuery('')}
+                        marketPrices={marketPrices}
+                        loadingMarketPrices={loadingMarketPrices}
+                        loadingTable={loadingTable}
+                        maxPrices={maxPrices}
+                        pendingMaxPrices={pendingMaxPrices}
+                        pendingAmounts={pendingAmounts}
+                        onMaxPricePendingChange={(itemId, val) =>
+                            setPendingMaxPrices((prev) => ({ ...prev, [itemId]: val }))
+                        }
+                        onApplyMaxPrice={handleApplyMaxPrice}
+                        onQuantityPendingChange={(targetId, val) =>
+                            setPendingAmounts((prev) => ({ ...prev, [targetId]: val }))
+                        }
+                        onQuantityBlurDiscard={handleQuantityBlurDiscard}
+                        onQuantityApply={handleQuantityApply}
+                        updating={updating}
+                        onDeactivate={handleDeactivate}
+                        onActivate={handleActivate}
+                        onDelete={handleDelete}
+                        getFloatRange={getFloatRange}
+                        unknownItemLabel={t('target.unknownItem')}
+                        marketLegendText={t('targets.marketLegend')}
+                        onBatchDeleteTargets={handleBatchDeleteTargets}
+                        onBatchDeactivateTargets={handleBatchDeactivateTargets}
+                        cooldownById={cooldownById}
+                        cooldownTick={cooldownTick}
+                    />
+                </>
+            ) : (
+                <section className="target-presets-panel">
+                    <div className="target-presets-header">
+                        <div>
+                            <h2 className="target-presets-title">Шаблони таргетів</h2>
+                            <p className="target-presets-subtitle">
+                                Швидко створи повторний target з уже збереженими параметрами шаблону.
+                            </p>
+                        </div>
+                        {loadingPresets && <span className="target-presets-muted">Завантаження...</span>}
+                    </div>
+                    {presetsError && <div className="error target-presets-error">{presetsError}</div>}
+                    {targetPresets.length > 0 ? (
+                        <div className="target-presets-grid">
+                            {targetPresets.map((preset) => (
+                                <TargetTemplateCard
+                                    key={preset.id}
+                                    preset={preset}
+                                    targets={targets}
+                                    onCreate={handleCreateFromPreset}
+                                    onDelete={handleDeletePreset}
+                                />
+                            ))}
+                        </div>
+                    ) : (
+                        <div className="target-presets-empty">
+                            Після створення target тут зʼявиться шаблон для повторного використання.
+                        </div>
+                    )}
+                </section>
+            )}
         </div>
     );
 }

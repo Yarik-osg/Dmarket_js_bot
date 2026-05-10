@@ -10,10 +10,10 @@ import '../styles/OffersList.css';
 import { formatUsdFromApiCents } from '../utils/formatUsd.js';
 import OfferForm from './OfferForm.jsx';
 import { OffersTable } from './offers/OffersTable.jsx';
-import { useOffers, getOfferId, getOfferTitle } from '../hooks/useOffers.js';
+import { useOffers, getOfferId, getOfferRuleId, getOfferTitle } from '../hooks/useOffers.js';
 import { BatchConfirmDetails } from './batch/BatchConfirmDetails.jsx';
 import { useOfferMarketPrices } from '../hooks/useOfferMarketPrices.js';
-import { usePersistedOfferMinPrices } from '../hooks/usePersistedOfferMinPrices.js';
+import { persistOfferRules, usePersistedOfferMinPrices } from '../hooks/usePersistedOfferMinPrices.js';
 import { useOfferAutoUpdate } from '../hooks/useOfferAutoUpdate.js';
 
 function OffersList({ isAutoUpdatingEnabled = false, onToggleAutoUpdate }) {
@@ -45,6 +45,7 @@ function OffersList({ isAutoUpdatingEnabled = false, onToggleAutoUpdate }) {
         skipForParsing,
         setSkipForParsing,
         skipForParsingRef,
+        pruneRulesForOffers,
         flushToLocalStorage
     } = usePersistedOfferMinPrices(offers);
 
@@ -54,6 +55,17 @@ function OffersList({ isAutoUpdatingEnabled = false, onToggleAutoUpdate }) {
         loading
     });
 
+    const loadOffersWithRulePrune = useCallback(
+        async () => {
+            const freshOffers = await loadOffers();
+            if (freshOffers !== undefined) {
+                await pruneRulesForOffers(freshOffers);
+            }
+            return freshOffers;
+        },
+        [loadOffers, pruneRulesForOffers]
+    );
+
     const { updating } = useOfferAutoUpdate({
         apiService,
         offersRef,
@@ -61,29 +73,29 @@ function OffersList({ isAutoUpdatingEnabled = false, onToggleAutoUpdate }) {
         maxPricesRef,
         skipForParsingRef,
         flushToLocalStorage,
-        loadOffers,
+        loadOffers: loadOffersWithRulePrune,
         addLog,
         isAutoUpdatingEnabled,
         offersLength: offers.length
     });
 
     useEffect(() => {
-        if (client && !loading) loadOffers();
+        if (client && !loading) loadOffersWithRulePrune();
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [client]);
 
     const handleRefresh = useCallback(async () => {
-        flushToLocalStorage();
-        await loadOffers();
-    }, [loadOffers, flushToLocalStorage]);
+        await flushToLocalStorage();
+        await loadOffersWithRulePrune();
+    }, [loadOffersWithRulePrune, flushToLocalStorage]);
 
     const handleApplyPriceBounds = useCallback(
-        (itemId) => {
+        async (itemId) => {
             const hasPendingMin = pendingMinPrices[itemId] !== undefined;
             const hasPendingMax = pendingMaxPrices[itemId] !== undefined;
             if (!hasPendingMin && !hasPendingMax) return;
 
-            const offer = offers.find((o) => o.itemId === itemId);
+            const offer = offers.find((o) => getOfferRuleId(o) === itemId || getOfferId(o) === itemId);
             const minStr = hasPendingMin
                 ? pendingMinPrices[itemId]
                 : String(minPrices[itemId] ?? offer?.minPrice ?? '');
@@ -113,18 +125,33 @@ function OffersList({ isAutoUpdatingEnabled = false, onToggleAutoUpdate }) {
                 }
             }
 
-            setMinPrices((prev) => ({ ...prev, [itemId]: String(minNum) }));
-            setMaxPrices((prev) => {
-                if (!hasPendingMax) return prev;
-                const next = { ...prev };
+            const nextMinPrices = { ...(minPricesRef.current || minPrices), [itemId]: String(minNum) };
+            const nextMaxPrices = { ...(maxPricesRef.current || maxPrices) };
+            const offerMetadata = {};
+            for (const currentOffer of offers) {
+                const currentOfferId = getOfferRuleId(currentOffer);
+                if (!currentOfferId) continue;
+                offerMetadata[currentOfferId] = {
+                    itemTitle: getOfferTitle(currentOffer, 'Невідомий офер')
+                };
+            }
+            if (hasPendingMax) {
                 if (maxStr === undefined || maxStr === null || String(maxStr).trim() === '') {
-                    delete next[itemId];
+                    delete nextMaxPrices[itemId];
                 } else {
-                    next[itemId] = String(
-                        parseFloat(String(maxStr).replace(',', '.'))
-                    );
+                    nextMaxPrices[itemId] = String(parseFloat(String(maxStr).replace(',', '.')));
                 }
-                return next;
+            }
+
+            setMinPrices(nextMinPrices);
+            setMaxPrices(nextMaxPrices);
+            minPricesRef.current = nextMinPrices;
+            maxPricesRef.current = nextMaxPrices;
+            await persistOfferRules({
+                minPrices: nextMinPrices,
+                maxPrices: nextMaxPrices,
+                skipForParsing: skipForParsingRef.current || {},
+                offerMetadata
             });
             setPendingMinPrices((prev) => {
                 const next = { ...prev };
@@ -165,6 +192,9 @@ function OffersList({ isAutoUpdatingEnabled = false, onToggleAutoUpdate }) {
             setMaxPrices,
             setPendingMinPrices,
             setPendingMaxPrices,
+            minPricesRef,
+            maxPricesRef,
+            skipForParsingRef,
             addLog,
             t
         ]
@@ -184,6 +214,22 @@ function OffersList({ isAutoUpdatingEnabled = false, onToggleAutoUpdate }) {
             return next;
         });
     }, [setPendingMinPrices, setPendingMaxPrices]);
+
+    const handleSkipChange = useCallback(
+        (itemId, checked) => {
+            setSkipForParsing((prev) => {
+                const next = { ...prev };
+                if (checked) {
+                    next[itemId] = true;
+                } else {
+                    delete next[itemId];
+                }
+                skipForParsingRef.current = next;
+                return next;
+            });
+        },
+        [setSkipForParsing, skipForParsingRef]
+    );
 
     const handleDelete = useCallback(
         async (offer) => {
@@ -348,32 +394,34 @@ function OffersList({ isAutoUpdatingEnabled = false, onToggleAutoUpdate }) {
 
     const handleBatchSkipParsingOffers = useCallback(
         (offers, clearSelection) => {
-            const itemIds = offers.map((o) => o.itemId).filter((id) => id != null && id !== '');
+            const itemIds = offers.map(getOfferRuleId).filter((id) => id != null && id !== '');
             if (itemIds.length === 0) return;
             setSkipForParsing((prev) => {
                 const next = { ...prev };
                 for (const id of itemIds) next[id] = true;
+                skipForParsingRef.current = next;
                 return next;
             });
             clearSelection();
         },
-        [setSkipForParsing]
+        [setSkipForParsing, skipForParsingRef]
     );
 
     const handleBatchUnskipParsingOffers = useCallback(
         (offers, clearSelection) => {
-            const itemIds = offers.map((o) => o.itemId).filter((id) => id != null && id !== '');
+            const itemIds = offers.map(getOfferRuleId).filter((id) => id != null && id !== '');
             if (itemIds.length === 0) return;
             setSkipForParsing((prev) => {
                 const next = { ...prev };
                 for (const id of itemIds) {
                     if (next[id] === true) delete next[id];
                 }
+                skipForParsingRef.current = next;
                 return next;
             });
             clearSelection();
         },
-        [setSkipForParsing]
+        [setSkipForParsing, skipForParsingRef]
     );
 
     const filteredOffers = useMemo(() => {
@@ -456,9 +504,7 @@ function OffersList({ isAutoUpdatingEnabled = false, onToggleAutoUpdate }) {
                 onApplyPriceBounds={handleApplyPriceBounds}
                 onCancelPriceBounds={handleCancelPriceBounds}
                 skipForParsing={skipForParsing}
-                onSkipChange={(itemId, checked) =>
-                    setSkipForParsing((prev) => ({ ...prev, [itemId]: checked }))
-                }
+                onSkipChange={handleSkipChange}
                 updating={updating}
                 onDelete={handleDelete}
                 unknownItemLabel={t('target.unknownItem')}

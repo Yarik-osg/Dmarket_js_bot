@@ -1,32 +1,110 @@
-import React, { createContext, useContext, useState, useMemo, useCallback } from 'react';
+import React, { createContext, useContext, useState, useMemo, useCallback, useEffect } from 'react';
+import {
+    clearAnalyticsTransactions,
+    getAnalyticsTransactions,
+    hasLocalDb,
+    saveAnalyticsTransactions
+} from '../services/localDb.js';
+import {
+    isStoredAnalyticsType,
+    isTradeSaleOrPurchase,
+    mapHistoryTransactionToAnalytics
+} from '../utils/analyticsTransactionType.js';
 
 const AnalyticsContext = createContext();
 
-export function AnalyticsProvider({ children }) {
-    const [transactions, setTransactions] = useState(() => {
+function readLegacyTransactions() {
+    try {
         const saved = localStorage.getItem('analytics_transactions');
         const parsed = saved ? JSON.parse(saved) : [];
-        
-        // Видаляємо тестові транзакції при завантаженні
-        const filtered = parsed.filter(t => {
+
+        return parsed.filter(t => {
             const id = t.originalId || t.id;
-            if (id) {
-                const idStr = id.toString();
-                if (idStr.startsWith('test-')) {
-                    return false;
-                }
-            }
-            return true;
+            return !id || !id.toString().startsWith('test-');
         });
+    } catch {
+        return [];
+    }
+}
+
+function persistLegacyTransactions(transactions) {
+    try {
+        localStorage.setItem('analytics_transactions', JSON.stringify(transactions));
+    } catch {
+        /* ignore */
+    }
+}
+
+function clearLegacyAnalyticsStorage() {
+    try {
+        localStorage.removeItem('analytics_transactions');
+    } catch {
+        /* ignore */
+    }
+}
+
+async function persistTransactions(transactions, options = {}) {
+    try {
+        if (hasLocalDb()) {
+            const result = await saveAnalyticsTransactions(transactions, options);
+            if (result?.ok) return;
+            console.warn('SQLite analytics save failed, falling back to localStorage:', result?.error);
+        }
+    } catch (error) {
+        console.warn('SQLite analytics save failed, falling back to localStorage:', error);
+    }
+
+    persistLegacyTransactions(transactions);
+}
+
+export function AnalyticsProvider({ children }) {
+    const [transactions, setTransactions] = useState(() => {
+        const filtered = readLegacyTransactions();
         
         // Якщо були видалені тестові транзакції, зберігаємо очищений список
-        if (filtered.length !== parsed.length) {
-            console.log(`Removed ${parsed.length - filtered.length} test transactions from localStorage`);
-            localStorage.setItem('analytics_transactions', JSON.stringify(filtered));
-        }
+        persistLegacyTransactions(filtered);
         
         return filtered;
     });
+    const [isHydrated, setIsHydrated] = useState(() => !hasLocalDb());
+
+    useEffect(() => {
+        if (!hasLocalDb()) {
+            setIsHydrated(true);
+            return undefined;
+        }
+
+        let cancelled = false;
+
+        (async () => {
+            try {
+                const result = await getAnalyticsTransactions({ limit: 5000 });
+                if (cancelled) return;
+
+                if (result?.ok && result.transactions?.length > 0) {
+                    setTransactions(result.transactions);
+                    clearLegacyAnalyticsStorage();
+                } else {
+                    const legacy = readLegacyTransactions();
+                    if (legacy.length > 0) {
+                        await saveAnalyticsTransactions(legacy, { replace: true });
+                        if (!cancelled) {
+                            setTransactions(legacy);
+                            clearLegacyAnalyticsStorage();
+                        }
+                    }
+                }
+            } catch (error) {
+                console.error('Failed to hydrate analytics from SQLite:', error);
+            } finally {
+                if (!cancelled) setIsHydrated(true);
+            }
+        })();
+
+        return () => {
+            cancelled = true;
+        };
+    }, []);
 
     const addTransaction = useCallback((transaction) => {
         // Перевіряємо, чи це тестова транзакція (перевіряємо оригінальний ID, якщо він переданий)
@@ -59,7 +137,7 @@ export function AnalyticsProvider({ children }) {
         
         setTransactions(prev => {
             const updated = [newTransaction, ...prev].slice(0, 5000);
-            localStorage.setItem('analytics_transactions', JSON.stringify(updated));
+            persistTransactions(updated, { replace: true });
             console.log(`Total transactions in analytics: ${updated.length}`);
             return updated;
         });
@@ -332,11 +410,13 @@ export function AnalyticsProvider({ children }) {
             if (t.type === 'sale') {
                 daily[date].sales += parseFloat(t.amount) || 0;
                 daily[date].salesCount += 1;
-            } else {
+            } else if (t.type === 'purchase') {
                 daily[date].purchases += parseFloat(t.amount) || 0;
                 daily[date].purchasesCount += 1;
             }
-            daily[date].count += 1;
+            if (isTradeSaleOrPurchase(t.type)) {
+                daily[date].count += 1;
+            }
         });
         return Object.entries(daily)
             .map(([date, data]) => ({ date, ...data }))
@@ -351,9 +431,9 @@ export function AnalyticsProvider({ children }) {
         }
 
         try {
-            console.log('Reloading all transactions from API (clearing localStorage)...');
-            // Очищаємо localStorage
+            console.log('Reloading all transactions from API (clearing stored analytics)...');
             localStorage.removeItem('analytics_transactions');
+            await clearAnalyticsTransactions();
             
             const response = await apiService.getTransactionHistory({
                 limit: limit,
@@ -368,123 +448,35 @@ export function AnalyticsProvider({ children }) {
                 return;
             }
 
-            // Перетворюємо транзакції з API в формат аналітики
-            const analyticsTransactions = transactions.map(tx => {
-                const transactionType = tx.type || '';
-                const typeLower = transactionType.toLowerCase();
-                const isSale = typeLower === 'sell' || typeLower === 'sale';
-                const isPurchase = typeLower === 'purchase' || typeLower === 'buy' || 
-                                  typeLower === 'target_closed' || 
-                                  (typeLower.includes('target') && typeLower.includes('closed'));
-
-                // Отримуємо amount
-                let amount = 0;
-                if (tx.changes && Array.isArray(tx.changes) && tx.changes.length > 0) {
-                    const moneyChange = tx.changes.find(change => change.money);
-                    if (moneyChange && moneyChange.money) {
-                        amount = parseFloat(moneyChange.money.amount || 0);
-                    }
-                }
-
-                // Отримуємо asset id (itemId) - унікальний ідентифікатор конкретного екземпляра предмета
-                // DMarket API має itemId в details.itemId (не в details.extra.itemId)
-                const assetId = tx.details?.itemId || 
-                               tx.itemId || 
-                               tx.assetId || 
-                               tx.asset_id ||
-                               null; // Не використовуємо transaction id як fallback
-                
-                // Витягуємо float з деталей транзакції
-                // DMarket API має floatValue в details.extra.floatValue
-                const floatValue = tx.details?.extra?.floatValue || 
-                                  tx.details?.extra?.float ||
-                                  tx.details?.floatValue ||
-                                  tx.details?.float ||
-                                  tx.extra?.floatValue ||
-                                  tx.extra?.float ||
-                                  null;
-                
-                // Логуємо детальну структуру, якщо float не знайдено
-                if (!floatValue && tx.details) {
-                    console.log('Loading transaction from API (float not found):', {
-                        type: transactionType,
-                        subject: tx.subject,
-                        hasDetails: !!tx.details,
-                        detailsItemId: tx.details?.itemId,
-                        assetId: assetId,
-                        floatValue: floatValue,
-                        detailsKeys: tx.details ? Object.keys(tx.details) : [],
-                        hasExtra: !!tx.details.extra,
-                        extraKeys: tx.details?.extra ? Object.keys(tx.details.extra) : [],
-                        fullDetails: tx.details
-                    });
-                } else {
-                    console.log('Loading transaction from API:', {
-                        type: transactionType,
-                        subject: tx.subject,
-                        hasDetails: !!tx.details,
-                        detailsItemId: tx.details?.itemId,
-                        assetId: assetId,
-                        floatValue: floatValue
-                    });
-                }
-
-                // Отримуємо createdAt
-                let createdAt = new Date().toISOString();
-                if (tx.createdAt) {
-                    const timestamp = typeof tx.createdAt === 'number' 
-                        ? (tx.createdAt < 10000000000 ? tx.createdAt * 1000 : tx.createdAt)
-                        : new Date(tx.createdAt).getTime();
-                    createdAt = new Date(timestamp).toISOString();
-                }
-
-                const transactionId = tx.id || tx.transactionId || tx.trxId;
-                const status = tx.status || 'unknown'; // Зберігаємо статус транзакції
-                return {
-                    id: transactionId || (Date.now() + Math.random()),
-                    originalId: transactionId, // Зберігаємо оригінальний ID для перевірки тестових транзакцій
-                    type: isSale ? 'sale' : 'purchase',
-                    itemTitle: tx.subject || tx.title || 'Unknown Item',
-                    assetId: assetId, // Додаємо asset id (itemId з details.itemId) для зіставлення
-                    amount: amount,
-                    floatValue: floatValue, // Додаємо float value
-                    status: status, // Додаємо статус транзакції
-                    createdAt: createdAt,
-                    timestamp: createdAt, // Використовуємо createdAt як timestamp
-                    soldAt: isSale ? createdAt : null
-                };
-            }).filter(tx => {
-                // Виключаємо тестові транзакції (ID починається з "test-")
-                const id = tx.originalId || tx.id;
-                if (id) {
-                    const idStr = id.toString();
-                    if (idStr.startsWith('test-')) {
+            const analyticsTransactions = transactions
+                .map(mapHistoryTransactionToAnalytics)
+                .filter((tx) => {
+                    const id = tx.originalId || tx.id;
+                    if (id && String(id).startsWith('test-')) {
                         console.log('Filtering out test transaction from API:', id);
                         return false;
                     }
-                }
-                
-                // Фільтруємо тільки продажі та покупки
-                // Дозволяємо транзакції без assetId (для старих транзакцій), але логуємо попередження
-                const isValid = tx.type === 'sale' || tx.type === 'purchase';
-                if (!isValid) {
-                    return false;
-                }
-                if (!tx.assetId) {
-                    console.warn('Transaction without assetId (will use fallback):', {
-                        type: tx.type,
-                        itemTitle: tx.itemTitle,
-                        id: tx.id
-                    });
-                }
-                return true;
-            }); // Тільки продажі та покупки (з assetId або без)
+                    if (!isStoredAnalyticsType(tx.type)) {
+                        return false;
+                    }
+                    if (
+                        (tx.type === 'sale' || tx.type === 'purchase') &&
+                        !tx.assetId
+                    ) {
+                        console.warn('Transaction without assetId (will use fallback):', {
+                            type: tx.type,
+                            itemTitle: tx.itemTitle,
+                            id: tx.id
+                        });
+                    }
+                    return true;
+                });
 
             console.log(`Processed ${analyticsTransactions.length} transactions for analytics`);
 
             // Зберігаємо всі транзакції (повне перезавантаження)
             setTransactions(analyticsTransactions);
-            localStorage.setItem('analytics_transactions', JSON.stringify(analyticsTransactions));
+            await persistTransactions(analyticsTransactions, { replace: true });
             console.log(`Reloaded ${analyticsTransactions.length} transactions from API`);
         } catch (error) {
             console.error('Error reloading transactions from API:', error);
@@ -512,128 +504,40 @@ export function AnalyticsProvider({ children }) {
                 return;
             }
 
-            // Перетворюємо транзакції з API в формат аналітики
-            const analyticsTransactions = transactions.map(tx => {
-                const transactionType = tx.type || '';
-                const typeLower = transactionType.toLowerCase();
-                const isSale = typeLower === 'sell' || typeLower === 'sale';
-                const isPurchase = typeLower === 'purchase' || typeLower === 'buy' || 
-                                  typeLower === 'target_closed' || 
-                                  (typeLower.includes('target') && typeLower.includes('closed'));
-
-                // Отримуємо amount
-                let amount = 0;
-                if (tx.changes && Array.isArray(tx.changes) && tx.changes.length > 0) {
-                    const moneyChange = tx.changes.find(change => change.money);
-                    if (moneyChange && moneyChange.money) {
-                        amount = parseFloat(moneyChange.money.amount || 0);
-                    }
-                }
-
-                // Отримуємо asset id (itemId) - унікальний ідентифікатор конкретного екземпляра предмета
-                // DMarket API має itemId в details.itemId (не в details.extra.itemId)
-                const assetId = tx.details?.itemId || 
-                               tx.itemId || 
-                               tx.assetId || 
-                               tx.asset_id ||
-                               null; // Не використовуємо transaction id як fallback
-                
-                // Витягуємо float з деталей транзакції
-                // DMarket API має floatValue в details.extra.floatValue
-                const floatValue = tx.details?.extra?.floatValue || 
-                                  tx.details?.extra?.float ||
-                                  tx.details?.floatValue ||
-                                  tx.details?.float ||
-                                  tx.extra?.floatValue ||
-                                  tx.extra?.float ||
-                                  null;
-                
-                // Логуємо детальну структуру, якщо float не знайдено
-                if (!floatValue && tx.details) {
-                    console.log('Loading transaction from API (float not found):', {
-                        type: transactionType,
-                        subject: tx.subject,
-                        hasDetails: !!tx.details,
-                        detailsItemId: tx.details?.itemId,
-                        assetId: assetId,
-                        floatValue: floatValue,
-                        detailsKeys: tx.details ? Object.keys(tx.details) : [],
-                        hasExtra: !!tx.details.extra,
-                        extraKeys: tx.details?.extra ? Object.keys(tx.details.extra) : [],
-                        fullDetails: tx.details
-                    });
-                } else {
-                    console.log('Loading transaction from API:', {
-                        type: transactionType,
-                        subject: tx.subject,
-                        hasDetails: !!tx.details,
-                        detailsItemId: tx.details?.itemId,
-                        assetId: assetId,
-                        floatValue: floatValue
-                    });
-                }
-
-                // Отримуємо createdAt
-                let createdAt = new Date().toISOString();
-                if (tx.createdAt) {
-                    const timestamp = typeof tx.createdAt === 'number' 
-                        ? (tx.createdAt < 10000000000 ? tx.createdAt * 1000 : tx.createdAt)
-                        : new Date(tx.createdAt).getTime();
-                    createdAt = new Date(timestamp).toISOString();
-                }
-
-                const transactionId = tx.id || tx.transactionId || tx.trxId;
-                const status = tx.status || 'unknown'; // Зберігаємо статус транзакції
-                return {
-                    id: transactionId || (Date.now() + Math.random()),
-                    originalId: transactionId, // Зберігаємо оригінальний ID для перевірки тестових транзакцій
-                    type: isSale ? 'sale' : 'purchase',
-                    itemTitle: tx.subject || tx.title || 'Unknown Item',
-                    assetId: assetId, // Додаємо asset id (itemId з details.itemId) для зіставлення
-                    amount: amount,
-                    floatValue: floatValue, // Додаємо float value
-                    status: status, // Додаємо статус транзакції
-                    createdAt: createdAt,
-                    timestamp: createdAt, // Використовуємо createdAt як timestamp
-                    soldAt: isSale ? createdAt : null
-                };
-            }).filter(tx => {
-                // Виключаємо тестові транзакції (ID починається з "test-")
-                const id = tx.originalId || tx.id;
-                if (id) {
-                    const idStr = id.toString();
-                    if (idStr.startsWith('test-')) {
+            const analyticsTransactions = transactions
+                .map(mapHistoryTransactionToAnalytics)
+                .filter((tx) => {
+                    const id = tx.originalId || tx.id;
+                    if (id && String(id).startsWith('test-')) {
                         console.log('Filtering out test transaction from API:', id);
                         return false;
                     }
-                }
-                
-                // Фільтруємо тільки продажі та покупки
-                // Дозволяємо транзакції без assetId (для старих транзакцій), але логуємо попередження
-                const isValid = tx.type === 'sale' || tx.type === 'purchase';
-                if (!isValid) {
-                    return false;
-                }
-                if (!tx.assetId) {
-                    console.warn('Transaction without assetId (will use fallback):', {
-                        type: tx.type,
-                        itemTitle: tx.itemTitle,
-                        id: tx.id
-                    });
-                }
-                return true;
-            }); // Тільки продажі та покупки (з assetId або без)
+                    if (!isStoredAnalyticsType(tx.type)) {
+                        return false;
+                    }
+                    if (
+                        (tx.type === 'sale' || tx.type === 'purchase') &&
+                        !tx.assetId
+                    ) {
+                        console.warn('Transaction without assetId (will use fallback):', {
+                            type: tx.type,
+                            itemTitle: tx.itemTitle,
+                            id: tx.id
+                        });
+                    }
+                    return true;
+                });
 
             console.log(`Processed ${analyticsTransactions.length} transactions for analytics`);
 
             // Додаємо транзакції, уникаючи дублікатів
-            setTransactions(prev => {
+            setTransactions((prev) => {
                 const existingIds = new Set(prev.map(t => t.id));
                 const newTransactions = analyticsTransactions.filter(t => !existingIds.has(t.id));
                 
                 if (newTransactions.length > 0) {
                     const updated = [...newTransactions, ...prev].slice(0, 5000);
-                    localStorage.setItem('analytics_transactions', JSON.stringify(updated));
+                    persistTransactions(updated, { replace: true });
                     console.log(`Added ${newTransactions.length} new transactions, total: ${updated.length}`);
                     return updated;
                 } else {
@@ -652,7 +556,8 @@ export function AnalyticsProvider({ children }) {
             addTransaction,
             getStatistics,
             loadTransactionsFromAPI,
-            reloadTransactionsFromAPI
+            reloadTransactionsFromAPI,
+            isHydrated
         }}>
             {children}
         </AnalyticsContext.Provider>

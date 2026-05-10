@@ -17,7 +17,7 @@ import { OfferTradeLockCell } from './OfferTradeLockCell.jsx';
 import { DMarketProductLinkButton } from '../DMarketProductLinkButton.jsx';
 import { PriceHistoryModal } from '../PriceHistoryChart.jsx';
 import { formatUsdFromApiCents } from '../../utils/formatUsd.js';
-import { getOfferId, getOfferTitle } from '../../hooks/useOffers.js';
+import { getOfferId, getOfferRuleId, getOfferTitle } from '../../hooks/useOffers.js';
 import { BatchActionsToolbar } from '../batch/BatchActionsToolbar.jsx';
 
 const COLUMN_STORAGE_KEY = 'offersTableColumnVisibility';
@@ -62,7 +62,7 @@ function marketSortNumber(offer, marketPrices) {
 }
 
 function minPriceSortNumber(offer, minPrices, pendingMinPrices) {
-    const itemId = offer.itemId;
+    const itemId = getOfferRuleId(offer);
     const raw = pendingMinPrices[itemId] ?? minPrices[itemId] ?? offer.minPrice;
     if (raw === undefined || raw === null || raw === '') return 0;
     const n = parseFloat(String(raw));
@@ -252,7 +252,7 @@ export function OffersTable({
                 width: 280,
                 render: (offer) => (
                     <PriceBoundsEditor
-                        itemId={offer.itemId}
+                        itemId={getOfferRuleId(offer)}
                         pendingMinPrices={pendingMinPrices}
                         pendingMaxPrices={pendingMaxPrices}
                         minPrices={minPrices}
@@ -287,7 +287,7 @@ export function OffersTable({
                 sortable: false,
                 width: 160,
                 render: (offer) => {
-                    const itemId = offer.itemId;
+                    const itemId = getOfferRuleId(offer);
                     const title = getOfferTitle(offer, unknownItemLabel);
                     return (
                         <div className="offer-actions">

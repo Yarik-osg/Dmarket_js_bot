@@ -3,6 +3,7 @@ import { useAuth } from '../contexts/AuthContext.jsx';
 import { useLocale } from '../contexts/LocaleContext.jsx';
 import { useLogs } from '../contexts/LogsContext.jsx';
 import { ApiService } from '../services/apiService.js';
+import { getOfferPriceRules, saveOfferPriceRules } from '../services/localDb.js';
 import '../styles/OfferForm.css';
 
 function OfferForm({ onClose, onSave }) {
@@ -126,14 +127,21 @@ function OfferForm({ onClose, onSave }) {
             // We need to match assetId with itemId after offers are created
             // For now, save by assetId - will be matched when offers are loaded
             try {
-                const savedSkipForParsing = JSON.parse(localStorage.getItem('offersSkipForParsing') || '{}');
+                const sqliteRules = await getOfferPriceRules();
+                const savedSkipForParsing = sqliteRules?.ok
+                    ? { ...(sqliteRules.skipForParsing || {}) }
+                    : {};
                 selectedItems.forEach(item => {
                     if (item.skipForParsing) {
                         // Save by assetId - will be matched to itemId when offers are loaded
                         savedSkipForParsing[item.assetId] = true;
                     }
                 });
-                localStorage.setItem('offersSkipForParsing', JSON.stringify(savedSkipForParsing));
+                await saveOfferPriceRules({
+                    minPrices: sqliteRules?.ok ? sqliteRules.minPrices || {} : {},
+                    maxPrices: sqliteRules?.ok ? sqliteRules.maxPrices || {} : {},
+                    skipForParsing: savedSkipForParsing
+                });
             } catch (err) {
                 console.error('Error saving skipForParsing:', err);
             }

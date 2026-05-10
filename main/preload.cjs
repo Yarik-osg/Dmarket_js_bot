@@ -23,6 +23,29 @@ contextBridge.exposeInMainWorld('electronAPI', {
             return ipcRenderer.invoke('store-has', key);
         }
     },
+    db: {
+        getPath: () => ipcRenderer.invoke('db-get-path'),
+        getHealth: () => ipcRenderer.invoke('db-get-health'),
+        openFolder: () => ipcRenderer.invoke('db-open-folder'),
+        analytics: {
+            get: (options) => ipcRenderer.invoke('db-get-analytics-transactions', options),
+            save: (transactions, options) => ipcRenderer.invoke('db-save-analytics-transactions', transactions, options),
+            clear: () => ipcRenderer.invoke('db-clear-analytics-transactions')
+        },
+        targetPriceRules: {
+            get: () => ipcRenderer.invoke('db-get-target-price-rules'),
+            save: (snapshot) => ipcRenderer.invoke('db-save-target-price-rules', snapshot)
+        },
+        targetPresets: {
+            get: () => ipcRenderer.invoke('db-get-target-presets'),
+            save: (preset) => ipcRenderer.invoke('db-save-target-preset', preset),
+            delete: (id) => ipcRenderer.invoke('db-delete-target-preset', id)
+        },
+        offerPriceRules: {
+            get: () => ipcRenderer.invoke('db-get-offer-price-rules'),
+            save: (rules) => ipcRenderer.invoke('db-save-offer-price-rules', rules)
+        }
+    },
     updater: {
         getVersion: () => ipcRenderer.invoke('updater-get-version'),
         check: () => ipcRenderer.invoke('updater-check'),

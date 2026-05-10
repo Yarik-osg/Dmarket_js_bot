@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { marketItemMatchesOfferWearAndPhase } from '../utils/offerMarketMatch.js';
-import { getOfferId } from './useOffers.js';
+import { getOfferId, getOfferRuleId } from './useOffers.js';
 
 function itemOfferPriceToCents(item) {
     const price = item.price?.USD || item.price?.amount || item.price;
@@ -18,6 +18,39 @@ function parseMaxPriceCents(raw, minPriceCents) {
     const cents = Math.round(m * 100);
     if (cents < minPriceCents) return null;
     return cents;
+}
+
+function buildOfferUpdateFailureLog({ error, title, offerId, itemId, currentPriceFloat, newPriceFloat, logExtra }) {
+    const errorCode = error.errorCode || 'UnknownError';
+    const errorMessage = error.message || 'Помилка оновлення офера';
+    const isTimeLocked = errorCode === 'AssetTimeLocked';
+    let message = `Не вдалося оновити офер: ${title} (${errorCode})`;
+    if (isTimeLocked) {
+        message = `Офер тимчасово заблокований DMarket: ${title} (${errorMessage})`;
+    } else if (errorCode === 'EmptyOfferUpdateResult') {
+        message = `DMarket не підтвердив оновлення офера: ${title}`;
+    }
+
+    return {
+        type: 'warning',
+        category: 'parsing',
+        message,
+        details: {
+            title,
+            offerId,
+            itemId,
+            errorCode,
+            errorMessage,
+            dmarketFailure: error.result || null,
+            blockedUntil: isTimeLocked ? errorMessage : undefined,
+            oldPrice:
+                currentPriceFloat !== null
+                    ? currentPriceFloat.toFixed(2)
+                    : 'N/A',
+            attemptedPrice: newPriceFloat.toFixed(2),
+            ...logExtra
+        }
+    };
 }
 
 export function useOfferAutoUpdate({
@@ -60,14 +93,14 @@ export function useOfferAutoUpdate({
                 try {
                     if (i > 0) await new Promise((r) => setTimeout(r, 1000));
                     const offerId = getOfferId(offer);
-                    const itemId = offer.itemId;
+                    const itemId = getOfferRuleId(offer);
                     const assetId = offer.itemId;
                     const title = offer.title || offer.extra?.name;
                     const gameId = offer.gameId || 'a8db';
-                    const minPrice = currentMinPrices[itemId] || offer.minPrice;
-                    const maxPriceRaw = currentMaxPrices[itemId];
+                    const minPrice = currentMinPrices[itemId] ?? currentMinPrices[offerId] ?? offer.minPrice;
+                    const maxPriceRaw = currentMaxPrices[itemId] ?? currentMaxPrices[offerId];
                     const currentSkip = skipForParsingRef.current || {};
-                    if (currentSkip[itemId] === true) continue;
+                    if (currentSkip[itemId] === true || currentSkip[offerId] === true) continue;
                     if (!title || !offerId || !minPrice || !assetId) continue;
 
                     const minPriceCents = parseFloat(minPrice) * 100;
@@ -143,6 +176,28 @@ export function useOfferAutoUpdate({
                         continue;
                     }
 
+                    const attemptedPriceCents = Math.round(newPriceFloat * 100);
+                    if (
+                        attemptedPriceCents < minPriceCents ||
+                        (hasMaxCap && attemptedPriceCents > maxPriceCents)
+                    ) {
+                        addLog({
+                            type: 'warning',
+                            category: 'parsing',
+                            message: `Офер не оновлено: розрахована ціна поза діапазоном ${title}`,
+                            details: {
+                                title,
+                                offerId,
+                                itemId,
+                                minPrice,
+                                maxPrice: hasMaxCap ? String(maxPriceRaw) : undefined,
+                                attemptedPrice: newPriceFloat.toFixed(2),
+                                ...logExtra
+                            }
+                        });
+                        continue;
+                    }
+
                     if (
                         currentPriceFloat !== null &&
                         Math.abs(newPriceFloat - currentPriceFloat) < 0.01
@@ -187,26 +242,17 @@ export function useOfferAutoUpdate({
                             }
                         });
                     } catch (updateErr) {
-                        const errorCode = updateErr.errorCode || 'UnknownError';
-                        addLog({
-                            type: 'warning',
-                            category: 'parsing',
-                            message: `Не вдалося оновити офер: ${title} (${errorCode})`,
-                            details: {
+                        addLog(
+                            buildOfferUpdateFailureLog({
                                 title,
                                 offerId,
                                 itemId,
-                                errorCode,
-                                errorMessage:
-                                    updateErr.message || 'Помилка оновлення офера',
-                                oldPrice:
-                                    currentPriceFloat !== null
-                                        ? currentPriceFloat.toFixed(2)
-                                        : 'N/A',
-                                newPrice: newPriceFloat.toFixed(2),
-                                ...logExtra
-                            }
-                        });
+                                error: updateErr,
+                                currentPriceFloat,
+                                newPriceFloat,
+                                logExtra
+                            })
+                        );
                     }
                 } catch (err) {
                     console.error(

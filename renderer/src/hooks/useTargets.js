@@ -66,12 +66,14 @@ export function useTargets() {
         return nextTargets;
     }, [apiService]);
 
-    const createTarget = useCallback(async (targetData) => {
+    const createTarget = useCallback(async (targetData, { reload = true } = {}) => {
         if (!apiService) throw new Error('Not authenticated');
 
         try {
             const response = await apiService.createTarget(targetData);
-            await loadTargets();
+            if (reload) {
+                await loadTargets();
+            }
             return response;
         } catch (err) {
             throw new Error(err.message);

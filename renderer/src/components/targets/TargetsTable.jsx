@@ -1,6 +1,6 @@
 import React, { useMemo, useState, useEffect, useCallback } from 'react';
 import { DataTable } from 'mantine-datatable';
-import { Button, Checkbox, Group, Menu, Text } from '@mantine/core';
+import { Button, Checkbox, Group, Menu, Text, Tooltip } from '@mantine/core';
 import { RiDeleteBin6Line, RiPlayCircleLine, RiPauseCircleLine, RiLayoutColumnLine, RiLineChartLine } from 'react-icons/ri';
 import { TargetItemTitleCell } from './TargetItemTitleCell.jsx';
 import { MarketPriceCell } from './MarketPriceCell.jsx';
@@ -10,10 +10,12 @@ import { DMarketProductLinkButton } from '../DMarketProductLinkButton.jsx';
 import { PriceHistoryModal } from '../PriceHistoryChart.jsx';
 import { formatUsdFromApiCents } from '../../utils/formatUsd.js';
 import { BatchActionsToolbar } from '../batch/BatchActionsToolbar.jsx';
+import { getTargetPriceKey } from '../../utils/targetMaxPricesStorage.js';
+import { formatCooldownCell, cooldownSortRemaining } from '../../utils/targetTimeLimits.js';
 
 const COLUMN_STORAGE_KEY = 'targetsTableColumnVisibility';
 
-const COLUMN_IDS = ['num', 'itemTitle', 'ourPrice', 'marketPrice', 'maxPrice', 'amount', 'actions'];
+const COLUMN_IDS = ['num', 'itemTitle', 'ourPrice', 'marketPrice', 'maxPrice', 'updateCooldown', 'amount', 'actions'];
 
 function loadColumnVisibility() {
     try {
@@ -63,7 +65,7 @@ function marketSortNumber(target, marketPrices) {
 }
 
 function maxPriceSortNumber(target, maxPrices, pendingMaxPrices) {
-    const itemId = target.itemId;
+    const itemId = getTargetPriceKey(target);
     const raw = pendingMaxPrices[itemId] ?? maxPrices[itemId] ?? target.maxPrice;
     if (raw === undefined || raw === null || raw === '') return 0;
     const n = parseFloat(String(raw));
@@ -89,6 +91,10 @@ function compareSort(a, b, columnAccessor, ctx) {
         case 'maxPrice':
             va = maxPriceSortNumber(a, ctx.maxPrices, ctx.pendingMaxPrices);
             vb = maxPriceSortNumber(b, ctx.maxPrices, ctx.pendingMaxPrices);
+            break;
+        case 'updateCooldown':
+            va = cooldownSortRemaining(a, ctx.cooldownById);
+            vb = cooldownSortRemaining(b, ctx.cooldownById);
             break;
         case 'amount':
             va = Number(a.amount) || 1;
@@ -130,7 +136,9 @@ export function TargetsTable({
     unknownItemLabel,
     marketLegendText,
     onBatchDeleteTargets,
-    onBatchDeactivateTargets
+    onBatchDeactivateTargets,
+    cooldownById = {},
+    cooldownTick = 0
 }) {
     const [priceHistoryTitle, setPriceHistoryTitle] = useState(null);
     const [selectedRecords, setSelectedRecords] = useState([]);
@@ -167,9 +175,10 @@ export function TargetsTable({
             marketPrices,
             maxPrices,
             pendingMaxPrices,
-            unknownItemLabel
+            unknownItemLabel,
+            cooldownById
         }),
-        [marketPrices, maxPrices, pendingMaxPrices, unknownItemLabel]
+        [marketPrices, maxPrices, pendingMaxPrices, unknownItemLabel, cooldownById]
     );
 
     const sortedRecords = useMemo(() => {
@@ -178,7 +187,7 @@ export function TargetsTable({
         const mult = direction === 'asc' ? 1 : -1;
         rows.sort((a, b) => mult * compareSort(a, b, columnAccessor, sortCtx));
         return rows;
-    }, [filteredTargets, sortStatus, sortCtx]);
+    }, [filteredTargets, sortStatus, sortCtx, cooldownTick]);
 
     useEffect(() => {
         setSelectedRecords((prev) => prev.filter((r) => sortedRecords.includes(r)));
@@ -188,7 +197,7 @@ export function TargetsTable({
 
     useEffect(() => {
         if (visibleColumns[sortStatus.columnAccessor] !== false) return;
-        const fallback = ['itemTitle', 'ourPrice', 'marketPrice', 'maxPrice', 'amount'].find(
+        const fallback = ['itemTitle', 'ourPrice', 'marketPrice', 'maxPrice', 'updateCooldown', 'amount'].find(
             (a) => visibleColumns[a] !== false
         );
         setSortStatus({
@@ -279,7 +288,7 @@ export function TargetsTable({
                 sortable: true,
                 width: 180,
                 render: (target) => {
-                    const itemId = target.itemId;
+                    const itemId = getTargetPriceKey(target);
                     return (
                         <MaxPriceEditor
                             itemId={itemId}
@@ -290,6 +299,47 @@ export function TargetsTable({
                             onApply={onApplyMaxPrice}
                             disabled={updating}
                         />
+                    );
+                }
+            },
+            {
+                accessor: 'updateCooldown',
+                title: (
+                    <Tooltip
+                        label={t('targets.updateCooldownTooltip')}
+                        multiline
+                        maw={320}
+                        withArrow
+                        position="bottom"
+                    >
+                        <span className="targets-th-cooldown-label">{t('targets.updateCooldown')}</span>
+                    </Tooltip>
+                ),
+                sortable: true,
+                width: 108,
+                textAlign: 'center',
+                render: (target) => {
+                    const id = getTargetRowId(target);
+                    const entry = id ? cooldownById[id] : null;
+                    const { text, className, title: periodDetail } = formatCooldownCell(entry);
+                    const baseTip = t('targets.updateCooldownTooltip');
+                    let tip = baseTip;
+                    if (entry?.error) {
+                        tip = `${baseTip}\n\n${entry.error}`;
+                    } else if (className === 'target-cooldown--ready' && text === '—') {
+                        tip = `${baseTip}\n\n${t('targets.updateCooldownReady')}`;
+                    } else if (periodDetail) {
+                        tip = `${baseTip}\n\n${periodDetail}`;
+                    }
+                    return (
+                        <Tooltip label={tip} multiline maw={320} withArrow position="top">
+                            <span
+                                className={`target-cooldown-cell ${className}`}
+                                tabIndex={0}
+                            >
+                                {text}
+                            </span>
+                        </Tooltip>
                     );
                 }
             },
@@ -407,7 +457,8 @@ export function TargetsTable({
             onDeactivate,
             onActivate,
             onDelete,
-            setPriceHistoryTitle
+            setPriceHistoryTitle,
+            cooldownById
         ]
     );
 
@@ -543,6 +594,8 @@ function columnLabelText(accessor, t) {
             return t('targets.marketPrice');
         case 'maxPrice':
             return t('targets.maxPrice');
+        case 'updateCooldown':
+            return t('targets.updateCooldown');
         case 'amount':
             return t('targets.quantity');
         case 'actions':
