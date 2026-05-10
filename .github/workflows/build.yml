@@ -152,7 +152,16 @@ jobs:
           cache: 'npm'
           cache-dependency-path: package-lock.json
 
+      # macOS runner має Homebrew python@3.14 у PATH — без distutils, node-gyp 9 падає як на Windows CI
+      - name: Setup Python for node-gyp
+        id: py311
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
       - name: Install dependencies
+        env:
+          PYTHON: ${{ steps.py311.outputs.python-path }}
         run: npm ci
 
       - name: Build frontend
@@ -163,6 +172,7 @@ jobs:
         env:
           # Без підпису на CI
           CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+          PYTHON: ${{ steps.py311.outputs.python-path }}
         run: npm run build:mac
 
       - name: Build macOS and publish release
@@ -170,6 +180,7 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+          PYTHON: ${{ steps.py311.outputs.python-path }}
         run: npx cross-env NODE_ENV=production electron-builder --mac --publish always
 
       - name: Upload macOS artifacts
