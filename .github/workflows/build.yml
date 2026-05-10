@@ -25,7 +25,9 @@ jobs:
   # electron-builder --publish always дають 422: release tag_name already_exists).
   build-windows:
     name: Build for Windows
-    runs-on: windows-latest
+    # Не windows-latest: на нових runner (Win Server 2025 + VS 2026) node-gyp 9.x з better-sqlite3 часто дає
+    # "Could not find any Visual Studio installation". windows-2022 має VS 2022 і стабільно збирає нативні модулі.
+    runs-on: windows-2022
     if: |
       (github.event_name == 'workflow_dispatch' && (github.event.inputs.platform == 'win' || github.event.inputs.platform == 'all')) ||
       (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v'))
