@@ -60,7 +60,16 @@ jobs:
           cache: 'npm'
           cache-dependency-path: package-lock.json
 
+      # better-sqlite3 збирається через node-gyp; без MSVC у PATH GitHub-hosted Windows дає:
+      # "Could not find any Visual Studio installation to use"
+      - name: Setup MSVC for node-gyp (native addons)
+        uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: x64
+
       - name: Install dependencies
+        env:
+          npm_config_msvs_version: '2022'
         run: npm ci
 
       - name: Build frontend
