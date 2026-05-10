@@ -69,9 +69,17 @@ jobs:
         with:
           arch: x64
 
+      # node-gyp 9 / старий gyp імпортують distutils; у Python 3.12+ його нема → ModuleNotFoundError
+      - name: Setup Python for node-gyp
+        id: py311
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
       - name: Install dependencies
         env:
           npm_config_msvs_version: '2022'
+          PYTHON: ${{ steps.py311.outputs.python-path }}
         run: npm ci
 
       - name: Build frontend
@@ -80,6 +88,8 @@ jobs:
       # Ручний запуск: лише артефакти для завантаження з вкладки Actions
       - name: Build Windows installer (artifacts only)
         if: github.event_name == 'workflow_dispatch'
+        env:
+          PYTHON: ${{ steps.py311.outputs.python-path }}
         run: npm run build:win
 
       # Пуш тега v*: публікація в GitHub Release (latest.yml + exe + blockmap)
@@ -87,6 +97,7 @@ jobs:
         if: github.event_name == 'push'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PYTHON: ${{ steps.py311.outputs.python-path }}
         run: npx cross-env NODE_ENV=production electron-builder --win --publish always
 
       - name: Upload Windows artifacts
