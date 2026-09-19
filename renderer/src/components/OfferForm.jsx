@@ -27,17 +27,13 @@ function OfferForm({ onClose, onSave }) {
             setLoading(true);
             setError(null);
             try {
-                // API endpoint: /exchange/v1/user/items
-                // Parameters: side=user, orderBy=updated, orderDir=desc, gameId=a8db, limit=100, currency=USD, platform=browser
-                // treeFilters=itemLocation[]=true (URL encoded as itemLocation%5B%5D=true)
+                // GET /marketplace-api/v2/user/inventory
                 const response = await apiService.getUserItems({
-                    side: 'user',
-                    orderBy: 'updated',
+                    orderBy: 'updatedAt',
                     orderDir: 'desc',
-                    'treeFilters': 'itemLocation[]=true',
+                    treeFilters: 'inMarket=true',
                     gameId: 'a8db',
-                    limit: 100,
-                    currency: 'USD'
+                    limit: 100
                 });
                 console.log('response', response);
                 // API returns { objects: [...] } structure
@@ -191,14 +187,14 @@ function OfferForm({ onClose, onSave }) {
     const getFeePercentage = (item, price) => {
 
         if (!item || !item.fees || !item.fees.dmarket || !item.fees.dmarket.sell) {
-            return 10; // Default fee if no fees info
+            return 2; // Default DMarket fee when the API does not return fee details
         }
 
         const sellFees = item.fees.dmarket.sell;
 
         // If no custom field exists, use default
         if (!sellFees.custom) {
-            return parseFloat(sellFees.default?.percentage || 10);
+            return parseFloat(sellFees.default?.percentage || 2);
         }
 
         // Check if custom fee conditions are met
@@ -215,11 +211,11 @@ function OfferForm({ onClose, onSave }) {
         // Check if price is within range and time is valid
         if (priceInCents >= minPrice && priceInCents <= maxPrice &&
             currentTime >= startsAt && currentTime <= expiresAt) {
-            return parseFloat(custom.percentage || 10);
+            return parseFloat(custom.percentage || 2);
         }
 
         // Use default fee if custom doesn't apply
-        return parseFloat(sellFees.default?.percentage || 10);
+        return parseFloat(sellFees.default?.percentage || 2);
     };
 
     // Helper function to determine if custom fee applies

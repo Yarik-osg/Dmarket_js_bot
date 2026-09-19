@@ -111,7 +111,7 @@ function TargetForm({ target, initialData = null, onClose, onSave, onSaveWithMax
                 gameId: 'a8db',
                 title: query,
                 limit: 50, // Get more results to filter unique titles
-                currency: 'USD'
+                withImages: true
             });
             
             // Filter to show only unique titles

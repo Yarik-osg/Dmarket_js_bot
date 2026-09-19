@@ -1,7 +1,9 @@
+import { calculateYouGet } from './offerFees.js';
+
 /**
- * price.USD з getUserOffers — рядок у центах (як у OffersList «без комісії»).
+ * price.USD з Marketplace API v2 — публічна ціна продажу в центах (з комісією).
  */
-export function offerPriceUsdToNetDollars(priceUsd) {
+export function offerPriceUsdToGrossDollars(priceUsd) {
     if (priceUsd === undefined || priceUsd === null || priceUsd === 'N/A') return 0;
     if (typeof priceUsd === 'string') {
         if (!priceUsd.length) return 0;
@@ -17,11 +19,12 @@ export function offerPriceUsdToNetDollars(priceUsd) {
     return 0;
 }
 
-/** Сума «отримаєте» по всіх user offers (type === 'offer'). */
+/** Орієнтовна сума «отримаєте» після комісії по всіх активних оферах. */
 export function sumOffersNetUsd(offersList) {
     if (!Array.isArray(offersList)) return 0;
     return offersList.reduce((sum, o) => {
         if (!o || o.type !== 'offer') return sum;
-        return sum + offerPriceUsdToNetDollars(o.price?.USD);
+        const gross = offerPriceUsdToGrossDollars(o.price?.USD);
+        return sum + Number(calculateYouGet(o, gross));
     }, 0);
 }

@@ -1,6 +1,7 @@
 /**
  * Pure fee calculation utilities for DMarket offers.
  */
+const DEFAULT_DMARKET_FEE_PERCENT = 2;
 
 export function isCustomFeeApplicable(offer, price) {
     if (!offer?.fees?.dmarket?.sell?.custom) return false;
@@ -23,15 +24,17 @@ export function isCustomFeeApplicable(offer, price) {
 }
 
 export function getFeePercentage(offer, price) {
-    if (!offer?.fees?.dmarket?.sell) return 10;
+    if (!offer?.fees?.dmarket?.sell) return DEFAULT_DMARKET_FEE_PERCENT;
 
     const sellFees = offer.fees.dmarket.sell;
-    if (!sellFees.custom) return parseFloat(sellFees.default?.percentage || 10);
+    if (!sellFees.custom) {
+        return parseFloat(sellFees.default?.percentage || DEFAULT_DMARKET_FEE_PERCENT);
+    }
 
     if (isCustomFeeApplicable(offer, price)) {
-        return parseFloat(sellFees.custom.percentage || 10);
+        return parseFloat(sellFees.custom.percentage || DEFAULT_DMARKET_FEE_PERCENT);
     }
-    return parseFloat(sellFees.default?.percentage || 10);
+    return parseFloat(sellFees.default?.percentage || DEFAULT_DMARKET_FEE_PERCENT);
 }
 
 function getMinFee(offer, price) {

@@ -4,11 +4,12 @@ import { getOfferId, getOfferRuleId } from './useOffers.js';
 
 function itemOfferPriceToCents(item) {
     const price = item.price?.USD || item.price?.amount || item.price;
-    if (typeof price === 'string') {
-        const p = parseFloat(price);
-        return p >= 10 ? p : p * 100;
+    const raw = String(price ?? '').trim();
+    if (!raw) return 0;
+    if (raw.includes('.') || /e/i.test(raw)) {
+        return Math.round(parseFloat(raw) * 100);
     }
-    return price >= 10 ? price : price * 100;
+    return parseInt(raw, 10);
 }
 
 function parseMaxPriceCents(raw, minPriceCents) {
@@ -144,8 +145,10 @@ export function useOfferAutoUpdate({
                     let currentPriceFloat = null;
                     const curPrice = offer.price?.USD || offer.price?.amount || offer.price;
                     if (curPrice !== undefined && curPrice !== null && curPrice !== 'N/A') {
-                        const n = typeof curPrice === 'string' ? parseFloat(curPrice) : curPrice;
-                        if (!isNaN(n)) currentPriceFloat = n >= 10 ? n : n / 100;
+                        const currentPriceCents = itemOfferPriceToCents(offer);
+                        if (!isNaN(currentPriceCents)) {
+                            currentPriceFloat = currentPriceCents / 100;
+                        }
                     }
 
                     let newPriceFloat;

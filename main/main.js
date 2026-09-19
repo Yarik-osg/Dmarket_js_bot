@@ -78,6 +78,71 @@ ipcMain.handle('store-has', (event, key) => {
     return store.has(key);
 });
 
+const TELEGRAM_METHODS = new Set([
+    'getMe',
+    'getUpdates',
+    'deleteWebhook',
+    'sendMessage'
+]);
+const telegramPollControllers = new Map();
+
+ipcMain.handle('telegram-call', async (_event, payload = {}) => {
+    const token = String(payload.token || '').trim();
+    const method = String(payload.method || '').trim();
+    if (!token) return { ok: false, error: 'Telegram bot token is missing' };
+    if (!TELEGRAM_METHODS.has(method)) {
+        return { ok: false, error: `Unsupported Telegram method: ${method}` };
+    }
+
+    let controller;
+    let timeout;
+    try {
+        const url = new URL(`https://api.telegram.org/bot${token}/${method}`);
+        for (const [key, value] of Object.entries(payload.query || {})) {
+            if (value !== undefined && value !== null) {
+                url.searchParams.set(key, String(value));
+            }
+        }
+
+        if (method === 'getUpdates') {
+            telegramPollControllers.get(token)?.abort();
+        }
+        controller = new AbortController();
+        if (method === 'getUpdates') {
+            telegramPollControllers.set(token, controller);
+        }
+        timeout = setTimeout(() => controller.abort(), 40_000);
+        const response = await fetch(url, {
+            method: payload.body ? 'POST' : 'GET',
+            headers: payload.body ? { 'Content-Type': 'application/json' } : undefined,
+            body: payload.body ? JSON.stringify(payload.body) : undefined,
+            signal: controller.signal
+        });
+
+        const data = await response.json();
+        if (!response.ok || !data.ok) {
+            return {
+                ok: false,
+                error: data.description || `Telegram ${method} failed (${response.status})`
+            };
+        }
+        return { ok: true, data };
+    } catch (error) {
+        return {
+            ok: false,
+            error:
+                error?.name === 'AbortError'
+                    ? `Telegram ${method} timed out`
+                    : error?.message || String(error)
+        };
+    } finally {
+        if (timeout) clearTimeout(timeout);
+        if (method === 'getUpdates' && telegramPollControllers.get(token) === controller) {
+            telegramPollControllers.delete(token);
+        }
+    }
+});
+
 ipcMain.handle('db-get-path', () => {
     try {
         return { ok: true, path: localDb.getPath() };

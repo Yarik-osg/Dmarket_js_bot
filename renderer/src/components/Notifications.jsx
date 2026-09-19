@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useNotifications } from '../contexts/NotificationContext.jsx';
 import { useLocale } from '../contexts/LocaleContext.jsx';
+import { telegramApiCall } from '../services/telegramApi.js';
 import { 
     RiCheckboxCircleLine, 
     RiErrorWarningLine, 
@@ -76,6 +77,7 @@ function Notifications() {
     } = useNotifications();
 
     const [activeTab, setActiveTab] = useState('list');
+    const [telegramTestStatus, setTelegramTestStatus] = useState(null);
 
     const handleSettingChange = (key, value) => {
         setSettings(prev => ({
@@ -85,6 +87,7 @@ function Notifications() {
     };
 
     const handleTelegramChange = (key, value) => {
+        setTelegramTestStatus(null);
         setSettings(prev => ({
             ...prev,
             telegram: {
@@ -92,6 +95,32 @@ function Notifications() {
                 [key]: value
             }
         }));
+    };
+
+    const testTelegram = async () => {
+        const token = settings.telegram?.botToken?.trim();
+        const chatId = String(settings.telegram?.chatId || '').trim();
+        if (!token || !chatId) {
+            setTelegramTestStatus({ ok: false, text: 'Вкажіть bot token і chat ID.' });
+            return;
+        }
+
+        setTelegramTestStatus({ ok: null, text: 'Перевірка…' });
+        try {
+            const me = await telegramApiCall(token, 'getMe');
+            await telegramApiCall(token, 'sendMessage', {
+                body: {
+                    chat_id: chatId,
+                    text: `DMarket Bot: Telegram працює (@${me.result?.username || 'bot'})`
+                }
+            });
+            setTelegramTestStatus({ ok: true, text: 'Тестове повідомлення надіслано.' });
+        } catch (error) {
+            setTelegramTestStatus({
+                ok: false,
+                text: error?.message || String(error)
+            });
+        }
     };
 
 
@@ -337,6 +366,33 @@ function Notifications() {
                                             placeholder="-1001234567890"
                                         />
                                     </label>
+                                </div>
+
+                                <div className="setting-item">
+                                    <button
+                                        type="button"
+                                        className="btn btn-primary"
+                                        onClick={testTelegram}
+                                        disabled={telegramTestStatus?.ok === null}
+                                    >
+                                        Перевірити Telegram
+                                    </button>
+                                    {telegramTestStatus && (
+                                        <p
+                                            style={{
+                                                marginTop: 8,
+                                                marginBottom: 0,
+                                                color:
+                                                    telegramTestStatus.ok === false
+                                                        ? 'var(--error-color)'
+                                                        : telegramTestStatus.ok === true
+                                                          ? 'var(--success-color)'
+                                                          : 'var(--text-secondary)'
+                                            }}
+                                        >
+                                            {telegramTestStatus.text}
+                                        </p>
+                                    )}
                                 </div>
 
                                 <div className="setting-item">

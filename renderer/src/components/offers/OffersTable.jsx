@@ -249,7 +249,7 @@ export function OffersTable({
                 accessor: 'minPrice',
                 title: t('offers.priceBoundsColumn'),
                 sortable: true,
-                width: 280,
+                width: 140,
                 render: (offer) => (
                     <PriceBoundsEditor
                         itemId={getOfferRuleId(offer)}

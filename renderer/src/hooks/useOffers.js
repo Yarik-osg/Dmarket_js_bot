@@ -104,13 +104,11 @@ export function useOffers({ addLog, addTransaction } = {}) {
                         soldOffer.price?.USD || soldOffer.price?.amount || soldOffer.price || '0';
                     const assetId =
                         soldOffer.itemId || soldOffer.details?.itemId || soldOffer.extra?.itemId;
-                    let amount = 0;
-                    if (typeof price === 'string') {
-                        const cents = parseFloat(price);
-                        amount = cents >= 10 ? cents / 100 : cents;
-                    } else if (typeof price === 'number') {
-                        amount = price >= 10 ? price / 100 : price;
-                    }
+                    const rawPrice = String(price ?? '').trim();
+                    const amount =
+                        rawPrice.includes('.') || /e/i.test(rawPrice)
+                            ? parseFloat(rawPrice)
+                            : (parseInt(rawPrice || '0', 10) || 0) / 100;
 
                     if (addTransaction) {
                         addTransaction({

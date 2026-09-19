@@ -450,10 +450,10 @@ function PriceHistoryPanel() {
             const data = await apiService.getAllMarketItems({
                 gameId: 'a8db',
                 title: searchQuery.trim(),
-                currency: 'USD',
                 limit: 50,
                 orderBy: 'price',
-                orderDir: 'asc'
+                orderDir: 'asc',
+                withImages: true
             });
 
             const baseTitles = new Map();

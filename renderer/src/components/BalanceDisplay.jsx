@@ -212,12 +212,11 @@ function BalanceDisplay() {
         return Number.isFinite(n) ? n : 0;
     };
 
-    // API returns: { usd: "string", usdAvailableToWithdraw: "string", ... } — USD у центах (рядок)
-    const usdAvailable = balance?.usdAvailableToWithdraw || '0';
+    // `usd` is the wallet/trading balance; `usdAvailableToWithdraw` is only the withdrawable part.
+    const usdBalance = balance?.usd || '0';
+    const usdWithdrawable = balance?.usdAvailableToWithdraw || '0';
     const usdFrozen = balance?.usdTradeProtected || '0';
-    const availableCents = parseUsdCents(usdAvailable);
-    const frozenCents = parseUsdCents(usdFrozen);
-    const walletDollars = (availableCents + frozenCents) / 100;
+    const walletDollars = parseUsdCents(usdBalance) / 100;
 
     const grandWithOffersDollars =
         listedNetUsd !== null && !listedError ? walletDollars + listedNetUsd : null;
@@ -257,8 +256,12 @@ function BalanceDisplay() {
             {!sectionCollapsed && (
             <>
             <div className="balance-item">
-                <span className="balance-label">Доступно:</span>
-                <span className="balance-value available">${formatBalance(usdAvailable)}</span>
+                <span className="balance-label">Баланс:</span>
+                <span className="balance-value available">${formatBalance(usdBalance)}</span>
+            </div>
+            <div className="balance-item">
+                <span className="balance-label">Доступно до виведення:</span>
+                <span className="balance-value available">${formatBalance(usdWithdrawable)}</span>
             </div>
             <div className="balance-item">
                 <span className="balance-label">Заморожено:</span>
@@ -278,10 +281,6 @@ function BalanceDisplay() {
                           ? '…'
                           : `$${listedNetUsd.toFixed(2)}`}
                 </span>
-            </div>
-            <div className="balance-item total">
-                <span className="balance-label">Всього:</span>
-                <span className="balance-value total">${walletDollars.toFixed(2)}</span>
             </div>
             <div className="balance-item">
                 <span className="balance-label">{t('balance.totalWithOffers')}:</span>

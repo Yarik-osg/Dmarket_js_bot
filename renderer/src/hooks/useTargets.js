@@ -40,7 +40,7 @@ export function useTargets() {
                 setTargets(allTargets);
             } else {
                 try {
-                    const response = await apiService.getUserTargets({ currency: 'USD', gameId: 'a8db', limit: 100 });
+                    const response = await apiService.getUserTargets({ gameId: 'a8db', limit: 100 });
                     const targetsList = response?.objects?.filter(obj => obj.type === 'target') || [];
                     if (import.meta.env.DEV) {
                         console.log('Loaded targets:', targetsList.length, targetsList);

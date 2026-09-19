@@ -1,4 +1,14 @@
 import { DMarketClient } from './dmarketClient.js';
+import {
+    buildMarketplaceV2InventoryQuery,
+    buildMarketplaceV2OffersQuery,
+    buildMarketplaceV2TargetsQuery,
+    fetchMarketplaceV2AllPages,
+    fetchMarketplaceV2Pages,
+    normalizeMarketplaceV2InventoryItem,
+    normalizeMarketplaceV2Offer,
+    normalizeMarketplaceV2Target
+} from '../utils/marketplaceV2Adapters.js';
 
 class ApiService {
     constructor(client) {
@@ -184,25 +194,25 @@ class ApiService {
         return await this.client.call('POST', path, payload);
     }
 
-    // Exchange API - Market Items
+    // Marketplace API v2 - Market Offers
     async getMarketItems(params = {}) {
-        const path = '/exchange/v1/offers-by-title';
-        // https://api.dmarket.com/exchange/v1/offers-by-title
-        return await this.client.call('GET', path, params);
+        return await this.getAllMarketItems(params);
     }
 
     async getAllMarketItems(params = {}) {
-        const path = '/exchange/v1/market/items';
-        // https://api.dmarket.com/exchange/v1/market/items
-        // Default parameters
-        const defaultParams = {
-            gameId: 'a8db',
-            currency: 'USD',
-            limit: 100,
-            offset: 0
-        };
-        const finalParams = { ...defaultParams, ...params };
-        return await this.client.call('GET', path, finalParams);
+        const path = '/marketplace-api/v2/offers';
+        const requestedLimit = Math.max(1, Number.parseInt(params.limit, 10) || 100);
+        const query = buildMarketplaceV2OffersQuery({
+            ...params,
+            limit: Math.min(requestedLimit, 100)
+        });
+        return await fetchMarketplaceV2Pages(
+            this.client,
+            path,
+            query,
+            normalizeMarketplaceV2Offer,
+            { maxItems: requestedLimit }
+        );
     }
 
     // Trade Aggregator API
@@ -216,31 +226,50 @@ class ApiService {
         return await this.client.call('GET', path, params);
     }
 
-    // Exchange API - User Data
+    // Marketplace API v2 - User Data
     async getUserOffers(params = {}) {
-        const path = '/exchange/v1/user/offers';
-        return await this.client.call('GET', path, params);
+        const path = '/marketplace-api/v2/user/offers';
+        const { fetchAll = true, ...rest } = params;
+        const query = buildMarketplaceV2OffersQuery(rest, { userOffers: true });
+        return await fetchMarketplaceV2AllPages(
+            this.client,
+            path,
+            query,
+            normalizeMarketplaceV2Offer,
+            { fetchAll }
+        );
     }
 
     async getUserItems(params = {}) {
-        const path = '/exchange/v1/user/items';
+        const path = '/marketplace-api/v2/user/inventory';
+        const { fetchAll = true, ...rest } = params;
+        const query = buildMarketplaceV2InventoryQuery(rest);
         if (import.meta.env.DEV) {
-            console.log('getUserItems', params);
+            console.log('getUserItems', query);
         }
-        return await this.client.call('GET', path, params);
+        return await fetchMarketplaceV2AllPages(
+            this.client,
+            path,
+            query,
+            normalizeMarketplaceV2InventoryItem,
+            { fetchAll }
+        );
     }
 
     async getUserTargets(params = {}) {
-        const path = '/exchange/v1/user/targets';
-        // Default parameters
-        const defaultParams = {
-            currency: 'USD',
-            gameId: 'a8db',
-            limit: 100
-        };
-        // Merge with provided params
-        const finalParams = { ...defaultParams, ...params };
-        return await this.client.call('GET', path, finalParams);
+        const path = '/marketplace-api/v2/user/targets';
+        const { fetchAll = true, ...rest } = params;
+        const query = buildMarketplaceV2TargetsQuery(rest);
+        if (import.meta.env.DEV) {
+            console.log('getUserTargets', query);
+        }
+        return await fetchMarketplaceV2AllPages(
+            this.client,
+            path,
+            query,
+            normalizeMarketplaceV2Target,
+            { fetchAll }
+        );
     }
 
     // Marketplace API - Aggregated Prices

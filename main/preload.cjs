@@ -65,5 +65,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
     },
     feedback: {
         isWeb3Configured: () => ipcRenderer.invoke('feedback-web3-configured')
+    },
+    telegram: {
+        call: (payload) => ipcRenderer.invoke('telegram-call', payload)
     }
 });

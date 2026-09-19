@@ -51,35 +51,49 @@ function formatCentsUsd(amountStr) {
     return '0.' + amount.padStart(2, '0');
 }
 
-function parseUsdCents(value) {
-    const n = parseInt(String(value ?? '0'), 10);
-    return Number.isFinite(n) ? n : 0;
-}
-
 export function truncateTelegramText(text, maxLen = SAFE_MAX) {
     const s = String(text ?? '');
     if (s.length <= maxLen) return s;
     return `${s.slice(0, maxLen)}…`;
 }
 
-export async function fetchDmarketStatusForTelegram(apiService) {
+export async function fetchDmarketStatusForTelegram(
+    apiService,
+    {
+        includeTargets = true,
+        includeOffers = true,
+        includeBalance = true,
+        includeTargetMarkets = true,
+        includeOfferMarkets = true
+    } = {}
+) {
     const [targetsRes, offersRes] = await Promise.all([
-        apiService.getUserTargets({ currency: 'USD', gameId: 'a8db', limit: 100 }),
-        apiService.getUserOffers({ currency: 'USD', gameId: 'a8db', limit: 100 })
+        includeTargets
+            ? apiService.getUserTargets({ gameId: 'a8db', limit: 100 })
+            : null,
+        includeOffers
+            ? apiService.getUserOffers({ gameId: 'a8db', limit: 100 })
+            : null
     ]);
     const targetsRaw = targetsRes?.objects?.filter((o) => o.type === 'target') || [];
     const offersRaw = offersRes?.objects?.filter((o) => o.type === 'offer') || [];
 
-    let balance;
-    try {
-        balance = await apiService.getUserBalance();
-    } catch (e) {
-        balance = { error: e?.message || String(e) };
+    let balance = null;
+    if (includeBalance) {
+        try {
+            balance = await apiService.getUserBalance();
+        } catch (e) {
+            balance = { error: e?.message || String(e) };
+        }
     }
 
     const [targetMarkets, offerMarkets] = await Promise.all([
-        fetchTargetMarketPricesMap(apiService, targetsRaw),
-        fetchOfferMarketPricesMap(apiService, offersRaw)
+        includeTargets && includeTargetMarkets
+            ? fetchTargetMarketPricesMap(apiService, targetsRaw)
+            : {},
+        includeOffers && includeOfferMarkets
+            ? fetchOfferMarketPricesMap(apiService, offersRaw)
+            : {}
     ]);
 
     const listedNetUsd = Math.round(sumOffersNetUsd(offersRaw) * 100) / 100;
@@ -105,16 +119,14 @@ export function formatTelegramBalanceBlock(balance, listedNetUsd, t) {
     if (balance?.error) {
         return t('telegram.balanceError').replace('{error}', String(balance.error));
     }
-    const usdAvailable = balance?.usdAvailableToWithdraw || '0';
+    const usdBalance = balance?.usd || '0';
+    const usdWithdrawable = balance?.usdAvailableToWithdraw || '0';
     const usdFrozen = balance?.usdTradeProtected || '0';
-    const availableCents = parseUsdCents(usdAvailable);
-    const frozenCents = parseUsdCents(usdFrozen);
-    const walletDollars = (availableCents + frozenCents) / 100;
     const lines = [
         `🪙 ${t('telegram.sectionBalance')}`,
-        `Доступно до виводу: $${formatCentsUsd(usdAvailable)}`,
-        `Трейд-протекшн: $${formatCentsUsd(usdFrozen)}`,
-        `Гаманець (доступно + протекшн): $${walletDollars.toFixed(2)}`
+        `Баланс: $${formatCentsUsd(usdBalance)}`,
+        `Доступно до виводу: $${formatCentsUsd(usdWithdrawable)}`,
+        `Трейд-протекшн: $${formatCentsUsd(usdFrozen)}`
     ];
     if (listedNetUsd != null && !Number.isNaN(listedNetUsd)) {
         lines.push(

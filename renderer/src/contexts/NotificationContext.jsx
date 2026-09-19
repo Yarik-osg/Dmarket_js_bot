@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useCallback, useEffect, useRef } from 'react';
 import { setDmarketHttpReporter } from '../utils/apiHealthBridge.js';
+import { telegramApiCall } from '../services/telegramApi.js';
 
 const NotificationContext = createContext();
 
@@ -86,23 +87,14 @@ export function NotificationProvider({ children }) {
 
         if (isTelegramEnabled) {
             try {
-                const url = `https://api.telegram.org/bot${settings.telegram.botToken}/sendMessage`;
-                const response = await fetch(url, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
+                await telegramApiCall(settings.telegram.botToken, 'sendMessage', {
+                    body: {
                         chat_id: settings.telegram.chatId,
                         text: message,
                         parse_mode: 'HTML'
-                    })
+                    }
                 });
-                
-                const result = await response.json();
-                if (result.ok) {
-                    console.log('Telegram notification sent successfully');
-                } else {
-                    console.error('Telegram API error:', result);
-                }
+                console.log('Telegram notification sent successfully');
             } catch (err) {
                 console.error('Telegram notification error:', err);
             }
@@ -118,7 +110,7 @@ export function NotificationProvider({ children }) {
 
     const checkLowBalance = useCallback((balance) => {
         if (balance && settings.lowBalance) {
-            const available = parseFloat(balance.usdAvailableToWithdraw || '0') / 100;
+            const available = parseFloat(balance.usd || '0') / 100;
             if (available < settings.lowBalanceThreshold) {
                 showNotification({
                     type: 'lowBalance',

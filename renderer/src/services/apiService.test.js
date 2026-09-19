@@ -9,6 +9,64 @@ function createApiService(response) {
     return service;
 }
 
+describe('ApiService v2 reads', () => {
+    const offerResponse = {
+        items: [
+            {
+                offerId: 'offer-1',
+                priceCents: '1234',
+                attributes: {
+                    id: 'asset-1',
+                    gameId: 'a8db',
+                    title: 'AK-47 | Redline'
+                }
+            }
+        ],
+        total: '1',
+        cursor: ''
+    };
+
+    it('uses the v2 marketplace offers endpoint without legacy params', async () => {
+        const service = createApiService(offerResponse);
+
+        const response = await service.getMarketItems({
+            gameId: 'a8db',
+            title: 'AK-47',
+            currency: 'USD',
+            offset: 10,
+            limit: 50
+        });
+
+        expect(service.client.call).toHaveBeenCalledWith(
+            'GET',
+            '/marketplace-api/v2/offers',
+            {
+                gameId: 'a8db',
+                title: 'AK-47',
+                limit: 50
+            }
+        );
+        expect(response.objects[0]).toMatchObject({
+            type: 'offer',
+            offerId: 'offer-1',
+            itemId: 'asset-1',
+            price: { USD: '1234' }
+        });
+    });
+
+    it('uses the v2 user offers endpoint', async () => {
+        const service = createApiService(offerResponse);
+
+        await service.getUserOffers({ gameId: 'a8db', currency: 'USD', limit: 100 });
+
+        expect(service.client.call).toHaveBeenCalledWith(
+            'GET',
+            '/marketplace-api/v2/user/offers',
+            { gameId: 'a8db', limit: 100 }
+        );
+    });
+});
+
 describe('ApiService.updateOffer', () => {
     it('converts dollar amount to cents for v2 batch update', async () => {
         const response = { offers: [{ offerId: 'offer-1' }], failed: [] };

@@ -1,6 +1,7 @@
 import { useEffect, useRef, useMemo } from 'react';
 import { useNotifications } from '../contexts/NotificationContext.jsx';
 import { useLocale } from '../contexts/LocaleContext.jsx';
+import { telegramApiCall } from '../services/telegramApi.js';
 import {
     fetchDmarketStatusForTelegram,
     formatTelegramBalanceBlock,
@@ -12,16 +13,6 @@ import {
 
 function sleep(ms) {
     return new Promise((r) => setTimeout(r, ms));
-}
-
-async function telegramPostJson(token, method, body) {
-    const url = `https://api.telegram.org/bot${token}/${method}`;
-    const res = await fetch(url, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body)
-    });
-    return res.json();
 }
 
 export default function TelegramUpdatesPoller({
@@ -78,7 +69,7 @@ export default function TelegramUpdatesPoller({
                 text: truncateTelegramText(text),
                 ...extra
             };
-            await telegramPostJson(token, 'sendMessage', payload);
+            await telegramApiCall(token, 'sendMessage', { body: payload });
         }
 
         /** Рядок або HTML-блок з parse_mode (таблиці таргетів/оферів). */
@@ -88,10 +79,12 @@ export default function TelegramUpdatesPoller({
                 return;
             }
             if (payload?.parseMode === 'HTML' && payload.text) {
-                await telegramPostJson(token, 'sendMessage', {
-                    chat_id: chatId,
-                    text: payload.text,
-                    parse_mode: 'HTML'
+                await telegramApiCall(token, 'sendMessage', {
+                    body: {
+                        chat_id: chatId,
+                        text: payload.text,
+                        parse_mode: 'HTML'
+                    }
                 });
                 return;
             }
@@ -100,9 +93,9 @@ export default function TelegramUpdatesPoller({
 
         async function deleteWebhook() {
             try {
-                const u = new URL(`https://api.telegram.org/bot${token}/deleteWebhook`);
-                u.searchParams.set('drop_pending_updates', 'true');
-                await fetch(u.toString());
+                await telegramApiCall(token, 'deleteWebhook', {
+                    query: { drop_pending_updates: false }
+                });
             } catch (e) {
                 console.warn('Telegram deleteWebhook', e);
             }
@@ -125,14 +118,27 @@ export default function TelegramUpdatesPoller({
 
         async function dispatch(cmd) {
             const parsing = parsingRef.current;
-            const data = await fetchDmarketStatusForTelegram(apiService);
 
             if (cmd === 'start') {
                 await sendMessage(t('telegram.welcome'), { reply_markup: replyKeyboard });
                 return;
             }
 
+            if (cmd === 'parsing') {
+                await sendMessage(
+                    formatTelegramParsingLine(parsing.targets, parsing.offers, t)
+                );
+                return;
+            }
+
             if (cmd === 'balance') {
+                const data = await fetchDmarketStatusForTelegram(apiService, {
+                    includeTargets: false,
+                    includeOffers: true,
+                    includeBalance: true,
+                    includeTargetMarkets: false,
+                    includeOfferMarkets: false
+                });
                 await sendMessage(
                     formatTelegramBalanceBlock(data.balance, data.listedNetUsd, t)
                 );
@@ -140,6 +146,13 @@ export default function TelegramUpdatesPoller({
             }
 
             if (cmd === 'targets') {
+                const data = await fetchDmarketStatusForTelegram(apiService, {
+                    includeTargets: true,
+                    includeOffers: false,
+                    includeBalance: false,
+                    includeTargetMarkets: true,
+                    includeOfferMarkets: false
+                });
                 await sendFormatted(
                     formatTelegramTargetsBlock(data.targetsRaw, t, data.targetMarkets || {})
                 );
@@ -147,15 +160,15 @@ export default function TelegramUpdatesPoller({
             }
 
             if (cmd === 'offers') {
+                const data = await fetchDmarketStatusForTelegram(apiService, {
+                    includeTargets: false,
+                    includeOffers: true,
+                    includeBalance: false,
+                    includeTargetMarkets: false,
+                    includeOfferMarkets: true
+                });
                 await sendFormatted(
                     formatTelegramOffersBlock(data.offersRaw, t, data.offerMarkets || {})
-                );
-                return;
-            }
-
-            if (cmd === 'parsing') {
-                await sendMessage(
-                    formatTelegramParsingLine(parsing.targets, parsing.offers, t)
                 );
                 return;
             }
@@ -166,20 +179,14 @@ export default function TelegramUpdatesPoller({
             offsetRef.current = 0;
 
             while (!cancelled) {
-                const ac = new AbortController();
-                const timer = setTimeout(() => ac.abort(), 90000);
                 try {
-                    const u = new URL(`https://api.telegram.org/bot${token}/getUpdates`);
-                    u.searchParams.set('offset', String(offsetRef.current));
-                    u.searchParams.set('timeout', '25');
-                    u.searchParams.set('allowed_updates', JSON.stringify(['message']));
-                    const res = await fetch(u.toString(), { signal: ac.signal });
-                    clearTimeout(timer);
-                    const data = await res.json();
-                    if (!data.ok) {
-                        await sleep(3000);
-                        continue;
-                    }
+                    const data = await telegramApiCall(token, 'getUpdates', {
+                        query: {
+                            offset: offsetRef.current,
+                            timeout: 25,
+                            allowed_updates: JSON.stringify(['message'])
+                        }
+                    });
                     for (const upd of data.result || []) {
                         if (cancelled) break;
                         offsetRef.current = upd.update_id + 1;
@@ -191,12 +198,19 @@ export default function TelegramUpdatesPoller({
                         try {
                             await dispatch(cmd);
                         } catch (e) {
-                            console.warn('TelegramUpdatesPoller dispatch', e);
+                            console.warn(`Telegram command ${cmd} failed:`, e);
+                            try {
+                                await sendMessage(
+                                    `Не вдалося виконати команду /${cmd}: ${e?.message || String(e)}`
+                                );
+                            } catch (sendError) {
+                                console.warn('Telegram error reply failed:', sendError);
+                            }
                         }
                     }
                 } catch (e) {
-                    clearTimeout(timer);
                     if (cancelled) break;
+                    console.warn('Telegram getUpdates request failed:', e);
                     await sleep(2000);
                 }
             }
